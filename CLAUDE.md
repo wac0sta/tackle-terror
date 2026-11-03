@@ -12,7 +12,7 @@ Een 2D voetbal-renspel (side-scroller), gemaakt door een vader en zoon (14). De 
 - Externe bronnen zijn alleen Google Fonts (Bungee en Barlow Condensed, met fallback-lettertypen) en de Firebase-SDK voor de ranglijst. Het spel moet ook zonder die twee speelbaar blijven.
 - Er is een vaste logische resolutie van 960 × 540, die geschaald wordt naar de schermgrootte.
 - De spelstatus `state` is een van: `menu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. Er is één `update(dt)` en één `render()` per frame.
-- Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`). Nieuwe instelbare waarden horen daar.
+- Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`, `ACHTERGRONDGELUID`). Nieuwe instelbare waarden horen daar.
 - Knoppen op het canvas worden elke frame opnieuw geregistreerd via `button()` / `buttons.push()`.
 
 ## Ranglijst en opslag

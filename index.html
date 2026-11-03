@@ -172,7 +172,9 @@ const OPP    = { kit: '#7b35c4', shorts: '#f2f2f2', socks: '#7b35c4', skin: '#e0
 const REF    = { kit: '#1c1c1c', shorts: '#1c1c1c', socks: '#1c1c1c', skin: '#f0c9a4', hair: '#9a9a9a', nr: '' };
 const KEEPER = { kit: '#27c46a', shorts: '#14301f', socks: '#27c46a', skin: '#d9a57b', hair: '#2a1a0f', nr: 1 };
 const ADS = ['Frituur De Gouden Bal', 'Bakkerij Krentenbol', 'Fietsen Van Dijk', 'Snackbar De Corner', 'Sportschool Spierwit', 'Garage De Wissel'];
-const AD_COLORS = [['#e8372c', '#fff'], ['#ffd23f', '#1d1d1d'], ['#1f5fbf', '#fff'], ['#ffffff', '#c3122b'], ['#111111', '#7cf05a'], ['#f28c28', '#fff']];
+// Doorlopend stadiongeluid (publiek en klapritme). Zet op true om het weer aan te zetten.
+const ACHTERGRONDGELUID = false;
+const AD_COLORS =[['#e8372c', '#fff'], ['#ffd23f', '#1d1d1d'], ['#1f5fbf', '#fff'], ['#ffffff', '#c3122b'], ['#111111', '#7cf05a'], ['#f28c28', '#fff']];
 
 /* ============================================================ */
 
@@ -211,7 +213,7 @@ let actx = null, muted = false, noiseBuf = null;
 function audio() {
   if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
   if (actx && actx.state === 'suspended') actx.resume();
-  if (actx) startAmbience();
+  if (actx && ACHTERGRONDGELUID) startAmbience();
 }
 function tone(f, dur, type = 'square', vol = 0.08, f2 = null, delay = 0) {
   if (!actx || muted) return;

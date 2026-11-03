@@ -119,6 +119,9 @@ Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt 
 
 ## Wijzigingslog
 
+### Versie 8: achtergrondgeluid uit
+- Het doorlopende stadiongeluid (publiek en klapritme) staat voorlopig uit. De geluidseffecten, het gejuich bij combo's en goals en de fluit blijven. Weer aanzetten kan met `ACHTERGRONDGELUID = true` in het blok INSTELLINGEN.
+
 ### Versie 7: online ranglijst met Firebase
 - Scores worden nu online bewaard in Firebase (Firestore). Iedereen ziet dezelfde ranglijst, ook op GitHub Pages.
 - Lukt Firebase niet, dan valt het spel terug op de artifact-database en daarna op de browseropslag.
