@@ -76,8 +76,13 @@ Na elk potje kun je je naam invullen en je score op de ranglijst zetten. De rang
 
 Waar de scores worden bewaard, hangt af van waar het spel draait:
 
-- **Als gepubliceerd Claude-artifact**: in de database van het artifact. Die blijft bestaan los van de browser, ook na het legen van de cache of op een andere computer. Via "Download als bestand" kun je alle scores als CSV exporteren (te openen in Excel).
-- **Los geopend of via GitHub Pages**: in de `localStorage` van de browser. Dan staat er onder de ranglijst de melding dat de scores alleen in die browser bewaard worden.
+- **Online via Firebase** (normaal, bijvoorbeeld via GitHub Pages of als je het bestand los opent met internet): iedereen ziet dezelfde ranglijst, op elke computer, tablet of telefoon. Nieuwe scores verschijnen meteen.
+- **Als Claude-artifact**: als Firebase daar niet bereikbaar is, gebruikt het spel de database van het artifact.
+- **Zonder internet**: in de `localStorage` van de browser. Dan staat er onder de ranglijst de melding dat de scores alleen in die browser bewaard worden.
+
+Via "Download als bestand" kun je alle scores als CSV exporteren (te openen in Excel).
+
+**Firebase beheren.** De scores staan in het Firebase-project `tackle-terror` (https://console.firebase.google.com), onder Firestore Database, collectie `scores`. Daar kun je ook valse of foute scores verwijderen. De beveiligingsregels zorgen dat het spel alleen nieuwe, netjes ingevulde scores mag toevoegen (naam van 1 tot 16 tekens, 0 tot 5000 punten, level 1 tot 3, datum van de server) en dat niemand via het spel scores kan wijzigen of wissen.
 
 Het persoonlijke record op het eindscherm wordt altijd in de browser bewaard.
 
@@ -113,6 +118,12 @@ Andere handige plekken in de code:
 Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt geschaald naar de schermgrootte. De spelstatus (`state`) is een van: `menu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`.
 
 ## Wijzigingslog
+
+### Versie 7: online ranglijst met Firebase
+- Scores worden nu online bewaard in Firebase (Firestore). Iedereen ziet dezelfde ranglijst, ook op GitHub Pages.
+- Lukt Firebase niet, dan valt het spel terug op de artifact-database en daarna op de browseropslag.
+- Een score wordt nooit dubbel opgeslagen als het opslaan een tweede keer geprobeerd wordt.
+- "Download als bestand" werkt nu ook buiten een Claude-artifact.
 
 ### Versie 6: eerlijkere penalty's en turbo
 - Een penalty schiet niet meer per ongeluk: de eerste halve seconde telt geen invoer, zodat een late sprong niet meteen schiet. Op touch schiet je alleen nog met een tik in het doel.

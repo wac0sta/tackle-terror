@@ -567,59 +567,148 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ---------- Ranglijst ----------
-   De scores worden bewaard in de database van dit artifact (los van de pagina),
-   zodat ze blijven bestaan, ook als je de browser of de cache leegmaakt.
-   Zonder database valt het spel terug op opslag in deze browser. */
-let db = null, dl = null, ranking = [], rankStatus = 'loading', rankFrom = 'menu';
+   De scores worden bij voorkeur online bewaard in Firebase (Firestore), zodat iedereen
+   dezelfde ranglijst ziet, op welke computer of tablet dan ook.
+   Lukt dat niet (bijvoorbeeld als Claude-artifact), dan gebruikt het spel de database
+   van het artifact, en anders de opslag in deze browser. */
+
+// Firebase-gegevens. Dit is geen geheim: de beveiliging zit in de regels in de Firebase-console.
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyACuBDtgNrMM6s0bfu8ppMqPFgHvusvkgc',
+  authDomain: 'tackle-terror.firebaseapp.com',
+  projectId: 'tackle-terror',
+  storageBucket: 'tackle-terror.firebasestorage.app',
+  messagingSenderId: '962695443242',
+  appId: '1:962695443242:web:e7ab130412eee6ffd8a453'
+};
+const FIREBASE_VERSION = '10.12.2';
+const RANK_LIMIT = 50; // zoveel scores worden live bijgehouden (zuinig met lezen)
+
+let store = null, dl = null, ranking = [], rankStatus = 'loading', rankFrom = 'menu', unsubRanking = null;
 let entryState = 'none', savedEntryId = null, savedEntry = null, dlMsg = null;
 const entryEl = document.getElementById('entry');
 const nameInput = document.getElementById('nameInput');
 const saveBtn = document.getElementById('saveBtn');
+const inArtifact = !!(window.claude && typeof window.claude.use === 'function');
 try { nameInput.value = localStorage.getItem('doorbraak-naam') || ''; } catch (e) {}
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function withTimeout(p, ms) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'timeout' })), ms))]);
+}
+
+// Online opslag via Firebase
+async function firebaseStore() {
+  const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+  const [{ initializeApp }, fs] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js')]);
+  const col = fs.collection(fs.getFirestore(initializeApp(FIREBASE_CONFIG)), 'scores');
+  const toRow = d => {
+    const v = d.data();
+    const datum = v.datum && typeof v.datum.toDate === 'function' ? v.datum.toDate().toISOString() : v.datum;
+    return Object.assign({ id: d.id }, v, { datum });
+  };
+  return {
+    kind: 'firebase',
+    subscribe(onRows, onErr) {
+      return fs.onSnapshot(fs.query(col, fs.orderBy('score', 'desc'), fs.limit(RANK_LIMIT)),
+        s => onRows(s.docs.map(toRow), s.metadata.fromCache), onErr);
+    },
+    async add(entry) {
+      const ref = fs.doc(col); // id vooraf bepalen, zodat een tweede poging geen dubbele score maakt
+      await withTimeout(fs.setDoc(ref, Object.assign({}, entry, { datum: fs.serverTimestamp() })), 10000);
+      return ref.id;
+    },
+    async getAll() {
+      const s = await fs.getDocs(fs.query(col, fs.orderBy('score', 'desc'), fs.limit(1000)));
+      return s.docs.map(toRow);
+    }
+  };
+}
+
+// Database van het Claude-artifact
+function artifactStore(d) {
+  const col = () => d.collection('scores');
+  return {
+    kind: 'artifact',
+    subscribe(onRows, onErr) {
+      return col().orderBy('score', 'desc').limit(200).onSnapshot(
+        s => onRows(s.docs.map(x => Object.assign({ id: x.id }, x.data())), s.metadata.fromCache), onErr);
+    },
+    async add(entry) {
+      const ref = await col().add(Object.assign({}, entry, { datum: new Date().toISOString() }));
+      return ref.id;
+    },
+    async getAll() {
+      const s = await col().orderBy('score', 'desc').limit(1000).get();
+      return s.docs.map(x => x.data());
+    }
+  };
+}
 
 function loadLocalRanking() {
   try { const v = JSON.parse(localStorage.getItem('doorbraak-ranglijst') || '[]'); return Array.isArray(v) ? v : []; }
   catch (e) { return []; }
 }
 function useLocal() {
-  db = null; rankStatus = 'local';
+  store = null; rankStatus = 'local';
   ranking = loadLocalRanking().sort((a, b) => b.score - a.score);
 }
-function subscribeRanking() {
-  const timer = setTimeout(() => { if (rankStatus === 'loading') rankStatus = 'slow'; }, 10000);
-  db.collection('scores').orderBy('score', 'desc').limit(200).onSnapshot(snap => {
-    ranking = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-    if (!snap.metadata.fromCache) { clearTimeout(timer); rankStatus = 'ok'; }
-    else if (rankStatus === 'loading') rankStatus = 'ok';
-  }, () => { clearTimeout(timer); rankStatus = 'error'; });
+async function useArtifactOrLocal() {
+  if (unsubRanking) { try { unsubRanking(); } catch (e) {} unsubRanking = null; }
+  store = null;
+  if (inArtifact) {
+    try { const d = await window.claude.use('db'); if (d) store = artifactStore(d); } catch (e) {}
+  }
+  if (store) { rankStatus = 'loading'; subscribeRanking(); } else useLocal();
 }
-if (window.claude && typeof window.claude.use === 'function') {
-  window.claude.use('db').then(d => { if (d) { db = d; subscribeRanking(); } else useLocal(); }).catch(useLocal);
-  window.claude.use('downloads').then(d => { dl = d; }).catch(() => {});
-} else useLocal();
+function subscribeRanking() {
+  const s = store;
+  let gotServer = false;
+  const timer = setTimeout(() => {
+    if (store !== s || gotServer) return;
+    // Firebase niet bereikbaar binnen een artifact: overstappen op de artifact-database
+    if (s.kind === 'firebase' && inArtifact) { useArtifactOrLocal(); return; }
+    if (rankStatus === 'loading') rankStatus = 'slow';
+  }, 8000);
+  unsubRanking = s.subscribe((rows, fromCache) => {
+    if (store !== s) return;
+    ranking = rows;
+    if (!fromCache) { gotServer = true; clearTimeout(timer); rankStatus = 'ok'; }
+    else if (rankStatus === 'loading' && s.kind !== 'firebase') rankStatus = 'ok';
+  }, () => {
+    if (store !== s) return;
+    clearTimeout(timer);
+    if (s.kind === 'firebase' && !gotServer) useArtifactOrLocal();
+    else rankStatus = 'error';
+  });
+}
+(async () => {
+  if (inArtifact) window.claude.use('downloads').then(d => { dl = d; }).catch(() => {});
+  try { store = await withTimeout(firebaseStore(), 6000); subscribeRanking(); }
+  catch (e) { useArtifactOrLocal(); }
+})();
 
 async function saveScore() {
   const name = nameInput.value.trim().slice(0, 16);
   if (!name) { nameInput.focus(); return; }
   if (entryState === 'saving' || entryState === 'saved') return;
   try { localStorage.setItem('doorbraak-naam', name); } catch (e) {}
-  const entry = { name, score: Math.floor(score), speler: player.name, level: lvlIdx + 1, kampioen: state === 'win', datum: new Date().toISOString() };
+  const entry = { name, score: Math.floor(score), speler: player.name, level: lvlIdx + 1, kampioen: state === 'win' };
   entryState = 'saving';
-  if (db) {
-    const attempt = () => db.collection('scores').add(entry);
+  if (store) {
     try {
-      let ref;
-      try { ref = await attempt(); }
+      let id;
+      try { id = await store.add(entry); }
       catch (e) {
-        if (e && e.code === 'unavailable') { await new Promise(r => setTimeout(r, 600 + Math.random() * 600)); ref = await attempt(); }
+        if (e && (e.code === 'unavailable' || e.code === 'timeout')) { await wait(600 + Math.random() * 600); id = await store.add(entry); }
         else throw e;
       }
-      savedEntryId = ref.id; savedEntry = entry; entryState = 'saved';
+      savedEntryId = id; savedEntry = entry; entryState = 'saved';
     } catch (e) { entryState = 'error'; }
   } else {
     const list = loadLocalRanking();
     const id = 'L' + Date.now();
-    list.push(Object.assign({ id }, entry));
+    list.push(Object.assign({ id, datum: new Date().toISOString() }, entry));
     try { localStorage.setItem('doorbraak-ranglijst', JSON.stringify(list)); } catch (e) {}
     ranking = list.sort((a, b) => b.score - a.score);
     savedEntryId = id; savedEntry = entry; entryState = 'saved';
@@ -644,10 +733,19 @@ function myRank() {
   const i = ranking.findIndex(r => r.id === savedEntryId);
   return i + 1;
 }
+function saveFile(filename, data) {
+  if (dl) return dl.save({ filename, data });
+  // gewone browser: bestand downloaden via een tijdelijke link
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }));
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return Promise.resolve();
+}
 async function downloadRanking() {
-  if (!dl) return;
   let rows = ranking;
-  if (db) { try { const snap = await db.collection('scores').orderBy('score', 'desc').limit(1000).get(); rows = snap.docs.map(d => d.data()); } catch (e) {} }
+  if (store) { try { rows = await store.getAll(); } catch (e) {} }
   const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
   const lines = ['Plek;Naam;Punten;Speler;Gehaald;Datum'];
   rows.forEach((r, i) => {
@@ -656,7 +754,7 @@ async function downloadRanking() {
     lines.push([i + 1, esc(r.name), r.score, esc(r.speler), esc(r.kampioen ? 'Kampioen' : 'Level ' + r.level), esc(datum)].join(';'));
   });
   try {
-    await dl.save({ filename: 'tackle-terror-ranglijst.csv', data: '\ufeff' + lines.join('\r\n') });
+    await saveFile('tackle-terror-ranglijst.csv', '﻿' + lines.join('\r\n'));
     dlMsg = 'Ranglijst gedownload';
   } catch (e) {
     dlMsg = e && e.code === 'declined' ? null : 'Downloaden lukt hier niet';
@@ -1602,7 +1700,7 @@ function drawRanking() {
   ctx.textAlign = 'center'; ctx.font = `500 16px ${FB}`; ctx.fillStyle = '#9fb3c6';
   if (rankStatus === 'local') ctx.fillText('Deze ranglijst wordt alleen in deze browser bewaard.', W / 2, py + ph - 14);
   else if (dlMsg) { ctx.fillStyle = '#5bd36b'; ctx.fillText(dlMsg, W / 2, py + ph - 14); }
-  const canDl = dl && ranking.length;
+  const canDl = ranking.length > 0;
   const n = canDl ? 3 : 2, bw = 220, gx = W / 2 - (bw * n + 16 * (n - 1)) / 2;
   button(gx, 462, bw, 50, 'Terug', closeRanking, false);
   button(gx + bw + 16, 462, bw, 50, 'Opnieuw spelen', () => { player = rankFrom === 'menu' ? PLAYERS[sel] : player; SFX.whistle(); newGame(); }, true);

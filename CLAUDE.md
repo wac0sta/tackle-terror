@@ -16,9 +16,13 @@ Een 2D voetbal-renspel (side-scroller), gemaakt door een vader en zoon (14). De 
 - Knoppen op het canvas worden elke frame opnieuw geregistreerd via `button()` / `buttons.push()`.
 
 ## Ranglijst en opslag
-- Als het spel als Claude-artifact draait, gaan de scores via `window.claude.use('db')` naar de collectie `scores`. Downloads lopen via `window.claude.use('downloads')`.
-- Zonder artifact valt het spel terug op `localStorage`.
-- **Hernoem de opslagsleutels nooit** (`doorbraak-hi`, `doorbraak-naam`, `doorbraak-ranglijst`) en ook de databasecollectie niet. Dat is de oude naam van het spel en zo blijven bestaande scores bewaard.
+- Er zijn drie opslagplekken via één adapter `store` (`subscribe`, `add`, `getAll`). De volgorde is:
+  1. **Firebase Firestore** (project `tackle-terror`, collectie `scores`). De SDK wordt dynamisch geladen van gstatic (`FIREBASE_VERSION`). De config staat in `FIREBASE_CONFIG` en is niet geheim.
+  2. **Artifact-database** via `window.claude.use('db')` (als Firebase niet bereikbaar is, bijvoorbeeld binnen een artifact).
+  3. **`localStorage`**.
+- De Firestore-regels (in de Firebase-console, niet in de repo) staan alleen `create` toe, met exact de velden `name` (1 tot 16 tekens), `score` (int, 0 tot 5000), `speler` (≤ 20 tekens), `level` (int, 1 tot 3), `kampioen` (bool) en `datum` (== request.time, dus `serverTimestamp()`). Lezen mag iedereen, `update` en `delete` mag niemand. **Verander je de velden van een score, pas dan ook de regels aan**, anders wordt opslaan geweigerd.
+- Testen kan met de REST API: `GET https://firestore.googleapis.com/v1/projects/tackle-terror/databases/(default)/documents/scores?key=<apiKey>`. Schrijf geen testscores naar de echte ranglijst, want die zijn alleen via de console te verwijderen.
+- **Hernoem de opslagsleutels nooit** (`doorbraak-hi`, `doorbraak-naam`, `doorbraak-ranglijst`) en ook de artifact-collectie niet. Dat is de oude naam van het spel en zo blijven bestaande scores bewaard.
 - `window.__doorbraak` onderaan is een testhaak.
 
 ## Controleren
