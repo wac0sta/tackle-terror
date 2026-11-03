@@ -9,7 +9,7 @@ Een 2D voetbal-renspel (side-scroller), gemaakt door een vader en zoon (14). De 
 ## Opbouw
 - Alles zit in **één bestand**: `index.html` (HTML, CSS en JS in een IIFE met `'use strict'`).
 - Geen externe afbeeldingen of geluidsbestanden: alles wordt op een `<canvas>` getekend en geluid wordt live gemaakt met de Web Audio API. Houd dat zo.
-- De enige externe bron is Google Fonts (Bungee en Barlow Condensed), met fallback-lettertypen.
+- Externe bronnen zijn alleen Google Fonts (Bungee en Barlow Condensed, met fallback-lettertypen) en de Firebase-SDK voor de ranglijst. Het spel moet ook zonder die twee speelbaar blijven.
 - Er is een vaste logische resolutie van 960 × 540, die geschaald wordt naar de schermgrootte.
 - De spelstatus `state` is een van: `menu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. Er is één `update(dt)` en één `render()` per frame.
 - Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`). Nieuwe instelbare waarden horen daar.
