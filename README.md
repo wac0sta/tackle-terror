@@ -114,6 +114,11 @@ Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt 
 
 ## Wijzigingslog
 
+### Versie 6: eerlijkere penalty's en turbo
+- Een penalty schiet niet meer per ongeluk: de eerste halve seconde telt geen invoer, zodat een late sprong niet meteen schiet. Op touch schiet je alleen nog met een tik in het doel.
+- Als de turboschoenen aflopen, ben je nog een halve seconde onkwetsbaar (je knippert even). Zo krijg je geen kaart van een tegenstander die op dat moment toevallig op je staat.
+- Punten zijn altijd hele getallen: Rik krijgt nu +8 voor een gouden bal (was +7,5) en +5 voor wegbeuken (was +4,5).
+
 ### Versie 5: nieuwe naam
 - Het spel heet nu **Tackle Terror!** (was: Doorbraak!). Aangepast in het titelscherm, de paginatitel, de schermlezer-beschrijving en de bestandsnaam van de geëxporteerde ranglijst (`tackle-terror-ranglijst.csv`).
 - De opslagsleutels in de browser (`doorbraak-hi`, `doorbraak-naam`, `doorbraak-ranglijst`) en de ranglijst-database zijn bewust niet hernoemd, zodat bestaande records en scores bewaard blijven.

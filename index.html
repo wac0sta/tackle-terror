@@ -469,7 +469,8 @@ function finishGame(won) {
 }
 
 function shoot() {
-  if (!pen || pen.phase !== 'aim') return;
+  // de eerste halve seconde telt niet, zodat een late sprong-tik niet meteen schiet
+  if (!pen || pen.phase !== 'aim' || pen.t < 0.5) return;
   pen.phase = 'shot'; pen.target = pen.aimX; pen.targetY = pen.aimY; pen.shotT = 0; SFX.kick();
   const wrong = Math.random() < [0.3, 0.35, 0.35][lvlIdx];
   pen.kTarget = wrong ? 960 - pen.target : pen.target;
@@ -536,8 +537,11 @@ canvas.addEventListener('pointerdown', e => {
     if (p.x < W * 0.4) { touchDuck = true; duckPointer = e.pointerId; }
     else { jump(); jumpPointer = e.pointerId; }
   } else if (state === 'penalty') {
-    if (pen && pen.phase === 'aim' && p.x > 250 && p.x < 710 && p.y > 140 && p.y < 390) pen.aimY = clamp(p.y, AIM_TOP, AIM_LOW);
-    shoot();
+    // alleen een tik in het doel schiet
+    if (pen && pen.phase === 'aim' && pen.t >= 0.5 && p.x > 250 && p.x < 710 && p.y > 140 && p.y < 390) {
+      pen.aimY = clamp(p.y, AIM_TOP, AIM_LOW);
+      shoot();
+    }
   }
   else if (state === 'paused') togglePause();
   e.preventDefault();
@@ -708,6 +712,7 @@ function updatePlay(dt) {
   }
   P.inv = Math.max(0, P.inv - dt);
   P.magnet = Math.max(0, P.magnet - dt);
+  if (P.turbo > 0 && P.turbo <= dt) P.inv = Math.max(P.inv, 0.6); // korte bescherming als de turbo afloopt
   P.turbo = Math.max(0, P.turbo - dt);
   P.anim += dt * (sp / 340) * 13;
   if (P.onGround && Math.random() < dt * (P.ducking ? 30 : 8)) burst(P.x + (P.ducking ? 28 : -10), GROUND, 1, ['#cfe3b8'], { speed: 40, up: 40, life: 0.3, size: 2.5, world: true });
@@ -747,7 +752,8 @@ function collide(e, r) {
   if (e.type === 'ball' || e.type === 'gold') {
     e.dead = true; combo++; lvlBalls++; bestCombo = Math.max(bestCombo, combo);
     if (e.type === 'gold') {
-      score += 5 * mul; SFX.gold(); addText(cx, cy - 10, '+' + (5 * mul), '#ffd84a', 26);
+      const pts = Math.round(5 * mul);
+      score += pts; SFX.gold(); addText(cx, cy - 10, '+' + pts, '#ffd84a', 26);
       burst(cx, cy, 16, ['#ffd84a', '#fff4b0', '#ffffff'], { speed: 180, grav: 200, life: 0.6, size: 3.5 });
     } else {
       score += mul; SFX.ball();
@@ -777,8 +783,9 @@ function collide(e, r) {
   // tegenstanders, pionnen en de scheids
   if (P.turbo > 0) {
     e.knocked = true; e.kvx = 500; e.kvy = -700;
-    score += 3 * player.scoreMul; SFX.kick(); shake = 0.15;
-    addText(cx, cy - 30, 'Weggebeukt! +' + 3 * player.scoreMul, '#ffe066', 26);
+    const pts = Math.round(3 * player.scoreMul);
+    score += pts; SFX.kick(); shake = 0.15;
+    addText(cx, cy - 30, 'Weggebeukt! +' + pts, '#ffe066', 26);
     return;
   }
   if (P.inv > 0) return;
