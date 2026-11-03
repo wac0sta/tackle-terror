@@ -119,6 +119,9 @@ Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt 
 
 ## Wijzigingslog
 
+### Versie 9: makers
+- Onder de besturingsinstructies staat nu "Gemaakt door Sverre, Tim en Claude".
+
 ### Versie 8: achtergrondgeluid uit
 - Het doorlopende stadiongeluid (publiek en klapritme) staat voorlopig uit. De geluidseffecten, het gejuich bij combo's en goals en de fluit blijven. Weer aanzetten kan met `ACHTERGRONDGELUID = true` in het blok INSTELLINGEN.
 
