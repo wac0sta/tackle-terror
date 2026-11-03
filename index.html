@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tackle Terror! Het voetbal-renspel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #d9e6d6;
+    --surface: #c7d9c3;
+    --ink: #10251a;
+    --muted: #3f5a48;
+    --accent: #ffb627;
+    --frame: #10251a;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c1811;
+      --surface: #16271c;
+      --ink: #e3efe5;
+      --muted: #9db8a5;
+      --frame: #2b4434;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1811;
+    --surface: #16271c;
+    --ink: #e3efe5;
+    --muted: #9db8a5;
+    --frame: #2b4434;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+    font-size: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 12px 20px;
+  }
+  .wrap {
+    width: min(100%, 1100px, calc((100vh - 110px) * 16 / 9));
+    min-width: min(100%, 320px);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    border: 3px solid var(--frame);
+    background: #2f8a3c;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stage { position: relative; }
+  .entry {
+    position: absolute; left: 50%; top: 80%;
+    transform: translate(-50%, -50%);
+    display: flex; gap: 8px;
+    width: min(90%, 470px);
+  }
+  .entry[hidden] { display: none; }
+  .entry input {
+    flex: 1; min-width: 0;
+    font: 600 1.15rem "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+    padding: 8px 12px; border-radius: 8px;
+    border: 2px solid #ffb627; background: #0e1612; color: #ffffff;
+  }
+  .entry input::placeholder { color: #8fa597; }
+  .entry button { background: #ffb627; color: #241703; border-color: #ffb627; white-space: nowrap; }
+  .entry button:disabled { opacity: 0.6; cursor: default; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  .help { color: var(--muted); margin: 0; line-height: 1.35; }
+  .help kbd {
+    font-family: inherit;
+    font-weight: 700;
+    background: var(--surface);
+    border-radius: 5px;
+    padding: 1px 7px;
+    color: var(--ink);
+  }
+  .btns { display: flex; gap: 8px; }
+  button {
+    font: 600 1.05rem "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+  button:focus-visible, canvas:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage">
+  <canvas id="game" width="960" height="540" tabindex="0" aria-label="Tackle Terror, een voetbal-renspel. Spatie om te springen, pijltje omlaag voor een sliding."></canvas>
+  <form class="entry" id="entry" hidden autocomplete="off">
+    <label for="nameInput" class="sr">Jouw naam voor de ranglijst</label>
+    <input id="nameInput" maxlength="16" placeholder="Jouw naam" enterkeyhint="done">
+    <button type="submit" id="saveBtn">Zet op de ranglijst</button>
+  </form>
+  </div>
+  <div class="bar">
+    <p class="help" id="help"><kbd>Spatie</kbd> of <kbd>↑</kbd> springen, <kbd>↓</kbd> sliding, <kbd>P</kbd> pauze, <kbd>M</kbd> geluid</p>
+    <div class="btns">
+      <button id="btnPause" type="button">Pauze</button>
+      <button id="btnSound" type="button">Geluid uit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================================================
+   INSTELLINGEN — hier kun je makkelijk dingen aanpassen!
+   ============================================================ */
+
+// De drie spelers. Verander gerust namen, rugnummers en kleuren.
+const PLAYERS = [
+  { name: 'Rik Raket',   nr: 7,  kit: '#f2c230', shorts: '#1d2b6b', socks: '#f2c230', skin: '#f1c7a1', hair: '#6b4120',
+    kracht: 'Snel', desc: 'Rent 15% sneller en krijgt 1,5 keer zoveel punten voor elke bal.',
+    speedMul: 1.15, scoreMul: 1.5, doubleJump: false, shieldStart: false },
+  { name: 'Bram de Muur', nr: 4, kit: '#2f7de1', shorts: '#ffffff', socks: '#2f7de1', skin: '#c98e62', hair: '#1b1b1b',
+    kracht: 'Sterk', desc: 'Begint elk level met een schild dat één tackle opvangt.',
+    speedMul: 1.0, scoreMul: 1.0, doubleJump: false, shieldStart: true },
+  { name: 'Joey Veer',   nr: 11, kit: '#ff6a3d', shorts: '#232323', socks: '#ff6a3d', skin: '#8d5a3b', hair: '#111111',
+    kracht: 'Springer', desc: 'Kan in de lucht nog een keer springen (dubbele sprong).',
+    speedMul: 1.0, scoreMul: 1.0, doubleJump: true, shieldStart: false }
+];
+
+// De levels: lengte van het veld, snelheid (pixels per seconde) en sfeer.
+const LEVELS = [
+  { name: 'Trainingsveld',        kind: 'training', length: 7000, speed: 340, gap: 1.25,
+    sky: ['#6fc0f0', '#d2ecfb'], grassA: '#55ad4e', grassB: '#4b9e44', rain: false, night: false,
+    obstacles: ['slide', 'slide', 'cone', 'cone', 'high'] },
+  { name: 'Dorpsclub in de regen', kind: 'club',     length: 8500, speed: 400, gap: 1.12,
+    sky: ['#5f707d', '#a3b0b9'], grassA: '#3f8a3f', grassB: '#377c37', rain: true, night: false,
+    obstacles: ['slide', 'cone', 'high', 'high', 'mud', 'ref'] },
+  { name: 'Stadion bij avond',     kind: 'stadium',  length: 10000, speed: 460, gap: 1.02,
+    sky: ['#081128', '#1f2d58'], grassA: '#2f9440', grassB: '#298636', rain: false, night: true,
+    obstacles: ['slide', 'slide', 'high', 'high', 'cone', 'mud', 'ref'] }
+];
+
+const OPP    = { kit: '#7b35c4', shorts: '#f2f2f2', socks: '#7b35c4', skin: '#e0b48e', hair: '#3a2414', nr: 5 };
+const REF    = { kit: '#1c1c1c', shorts: '#1c1c1c', socks: '#1c1c1c', skin: '#f0c9a4', hair: '#9a9a9a', nr: '' };
+const KEEPER = { kit: '#27c46a', shorts: '#14301f', socks: '#27c46a', skin: '#d9a57b', hair: '#2a1a0f', nr: 1 };
+const ADS = ['Frituur De Gouden Bal', 'Bakkerij Krentenbol', 'Fietsen Van Dijk', 'Snackbar De Corner', 'Sportschool Spierwit', 'Garage De Wissel'];
+const AD_COLORS = [['#e8372c', '#fff'], ['#ffd23f', '#1d1d1d'], ['#1f5fbf', '#fff'], ['#ffffff', '#c3122b'], ['#111111', '#7cf05a'], ['#f28c28', '#fff']];
+
+/* ============================================================ */
+
+const AIM_TOP = 178, AIM_LOW = 352;
+const W = 960, H = 540, GROUND = 470, GRAV = 2600, JUMP_V = -900, JUMP2_V = -800;
+const FD = '"Bungee", "Arial Black", Impact, sans-serif';
+const FB = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+function fitCanvas() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+fitCanvas();
+window.addEventListener('resize', fitCanvas);
+
+const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+if (coarse) {
+  document.getElementById('help').textContent = 'Tik rechts op het veld om te springen, houd links ingedrukt voor een sliding.';
+}
+
+/* ---------- Highscore ---------- */
+function loadHi() {
+  try { const v = localStorage.getItem('doorbraak-hi'); return v ? JSON.parse(v) : { score: 0, name: '' }; }
+  catch (e) { return { score: 0, name: '' }; }
+}
+function saveHi(h) { try { localStorage.setItem('doorbraak-hi', JSON.stringify(h)); } catch (e) {} }
+let hi = loadHi();
+if (!hi || typeof hi.score !== 'number') hi = { score: 0, name: '' };
+
+/* ---------- Geluid ---------- */
+let actx = null, muted = false, noiseBuf = null;
+function audio() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
+  if (actx && actx.state === 'suspended') actx.resume();
+  if (actx) startAmbience();
+}
+function tone(f, dur, type = 'square', vol = 0.08, f2 = null, delay = 0) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + delay;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, vol = 0.15, freq = 1200, q = 0.8, delay = 0) {
+  if (!actx || muted) return;
+  ensureNoise();
+  const t = actx.currentTime + delay;
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.25);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(actx.destination); s.start(t); s.stop(t + dur + 0.05);
+}
+function ensureNoise() {
+  if (noiseBuf) return;
+  noiseBuf = actx.createBuffer(1, actx.sampleRate * 4, actx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+
+// Doorlopend stadiongeluid: gefilterde ruis die langzaam aanzwelt en wegzakt
+let amb = null, ambMaster = null;
+function startAmbience() {
+  if (!actx || amb) return;
+  ensureNoise();
+  ambMaster = actx.createGain(); ambMaster.gain.value = muted ? 0 : 1; ambMaster.connect(actx.destination);
+  const swell = actx.createGain(); swell.gain.value = 1; swell.connect(ambMaster);
+  const g = actx.createGain(); g.gain.value = 0; g.connect(swell);
+  const layers = [[420, 0.7, 1], [1100, 0.9, 0.55], [2400, 1.4, 0.18]];
+  for (const [f, q, v] of layers) {
+    const src = actx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+    const lg = actx.createGain(); lg.gain.value = v;
+    src.connect(bp); bp.connect(lg); lg.connect(g);
+    src.start(0, Math.random() * 3);
+  }
+  for (const [rate, depth] of [[0.11, 0.22], [0.037, 0.15]]) {
+    const lfo = actx.createOscillator(); lfo.frequency.value = rate;
+    const lfoG = actx.createGain(); lfoG.gain.value = depth;
+    lfo.connect(lfoG); lfoG.connect(swell.gain); lfo.start();
+  }
+  amb = { g, cur: 0 };
+}
+function updateAmbience(dt) {
+  if (!amb) return;
+  let lv = 0.7;
+  if (state !== 'menu' && LEVELS[lvlIdx]) lv = { training: 0.35, club: 0.6, stadium: 1 }[LEVELS[lvlIdx].kind];
+  if (state === 'paused') lv *= 0.3;
+  const target = 0.06 * lv + (cheer > 0 ? 0.06 * lv + 0.03 : 0);
+  if (Math.abs(target - amb.cur) > 0.003) { amb.cur = target; amb.g.gain.setTargetAtTime(target, actx.currentTime, 0.25); }
+  if (state !== 'paused' && Math.random() < dt * 0.05 * lv) claps(lv);
+}
+function claps(lv) {
+  [0, 0.42, 0.84, 1.05, 1.26].forEach(d => noise(0.07, 0.05 * lv + 0.02, 1700, 1.1, d));
+}
+// Echte scheidsrechtersfluit: hoge toon met snelle triller (het balletje in de fluit) en wat adem
+function whistleBlast(dur, delay = 0, vol = 0.09) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + delay;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.025);
+  g.gain.setValueAtTime(vol, t + Math.max(0.03, dur - 0.06));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  g.connect(actx.destination);
+  const trill = actx.createOscillator(); trill.frequency.value = 36;
+  const tg = actx.createGain(); tg.gain.value = 170; trill.connect(tg);
+  for (const [type, mul, v] of [['sine', 1, 1], ['triangle', 2, 0.18]]) {
+    const o = actx.createOscillator(); o.type = type; o.frequency.value = 2850 * mul;
+    const mg = actx.createGain(); mg.gain.value = mul; tg.connect(mg); mg.connect(o.frequency);
+    const og = actx.createGain(); og.gain.value = v;
+    o.connect(og); og.connect(g); o.start(t); o.stop(t + dur + 0.05);
+  }
+  trill.start(t); trill.stop(t + dur + 0.05);
+  noise(dur, vol * 0.35, 3000, 2, delay);
+}
+
+const SFX = {
+  ball()    { tone(988, 0.07, 'square', 0.04); tone(1319, 0.11, 'square', 0.04, null, 0.05); },
+  gold()    { [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.1, 'square', 0.045, null, i * 0.06)); },
+  jump()    { tone(320, 0.15, 'triangle', 0.08, 640); },
+  hit()     { noise(0.22, 0.3, 380, 1); tone(110, 0.18, 'sine', 0.14, 50); },
+  whistle() { whistleBlast(0.3); whistleBlast(0.75, 0.42); },
+  yellow()  { whistleBlast(0.65, 0.05, 0.11); },
+  red()     { whistleBlast(0.22, 0.05, 0.11); whistleBlast(0.22, 0.36, 0.11); whistleBlast(1.0, 0.67, 0.11); },
+  power()   { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.09, 'triangle', 0.07, null, i * 0.05)); },
+  cheer()   { noise(1.5, 0.16, 900, 0.4); },
+  splash()  { noise(0.3, 0.2, 700, 2); },
+  kick()    { noise(0.08, 0.35, 300, 1); tone(120, 0.1, 'sine', 0.15, 60); },
+  select()  { tone(660, 0.06, 'square', 0.04); },
+  sad()     { tone(392, 0.25, 'triangle', 0.07); tone(330, 0.25, 'triangle', 0.07, null, 0.25); tone(262, 0.5, 'triangle', 0.07, null, 0.5); }
+};
+
+/* ---------- Helpers ---------- */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const mod = (a, m) => ((a % m) + m) % m;
+function hsh(n) {
+  n = n | 0;
+  n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+  n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+  n ^= n >>> 16;
+  return (n >>> 0) / 4294967296;
+}
+function rr(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function line(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+function lum(hex) {
+  const c = parseInt(hex.slice(1), 16);
+  return (0.299 * (c >> 16 & 255) + 0.587 * (c >> 8 & 255) + 0.114 * (c & 255)) / 255;
+}
+function wrapText(text, x, y, maxW, lh) {
+  const words = text.split(' ');
+  let ln = '';
+  for (const w of words) {
+    const test = ln ? ln + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && ln) { ctx.fillText(ln, x, y); ln = w; y += lh; }
+    else ln = test;
+  }
+  if (ln) ctx.fillText(ln, x, y);
+}
+function overlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+
+/* ---------- Spelstatus ---------- */
+let state = 'menu';
+let sel = 0, player = PLAYERS[0];
+let lvlIdx = 0, score = 0, cards = 0, combo = 0, bestCombo = 0, lvlBalls = 0;
+let dist = 0, ents = [], texts = [], parts = [], rain = [];
+let introT = 0, redT = 0, shake = 0, cheer = 0, flash = null, menuScroll = 0;
+let time = 0, newRecord = false, lastPenalty = null, pausedFrom = null;
+let buttons = [], mouse = { x: -1, y: -1 };
+let touchDuck = false, duckPointer = null, jumpPointer = null;
+const keys = {};
+const P = { x: 180, y: GROUND, vy: 0, onGround: true, jumps: 0, ducking: false, inv: 0, shield: false, magnet: 0, turbo: 0, anim: 0 };
+let pen = null;
+
+/* ---------- Level opbouwen ---------- */
+function addObstacle(out, t, x) {
+  const defs = {
+    slide: { w: 74, h: 26, y: GROUND - 26, vx: -140 },
+    cone:  { w: 26, h: 34, y: GROUND - 34, vx: 0 },
+    high:  { w: 74, h: 40, y: GROUND - 96, vx: -150 },
+    ref:   { w: 30, h: 76, y: GROUND - 76, vx: 50 },
+    mud:   { w: 120, h: 10, y: GROUND - 6, vx: 0 }
+  };
+  const d = defs[t];
+  out.push({ type: t, x, y: d.y, w: d.w, h: d.h, vx: d.vx, obstacle: true });
+}
+function addBall(out, x, y, gold) { out.push({ type: gold ? 'gold' : 'ball', x, y, w: 22, h: 22 }); }
+
+function genLevel(li) {
+  const L = LEVELS[li];
+  const sp = L.speed * player.speedMul;
+  const out = [];
+  let x = 1150, lastPower = 600;
+  const powers = ['boots', 'shield', 'magnet'];
+  while (x < L.length - 800) {
+    const t = L.obstacles[Math.floor(Math.random() * L.obstacles.length)];
+    addObstacle(out, t, x);
+    if (t === 'cone' || t === 'mud') {
+      for (let i = -2; i <= 2; i++) addBall(out, x + 13 + i * 34, GROUND - 120 + Math.abs(i) * Math.abs(i) * 12);
+    } else if (t === 'high') {
+      for (let i = 0; i < 3; i++) addBall(out, x - 40 + i * 40, GROUND - 22);
+    } else if (t === 'slide') {
+      for (let i = 0; i < 3; i++) addBall(out, x - 260 + i * 32, GROUND - 22);
+    } else if (t === 'ref') {
+      addBall(out, x + 15, GROUND - 140, Math.random() < 0.4);
+    }
+    let gap = sp * L.gap + Math.random() * sp * 0.7;
+    if (t === 'slide' || t === 'high') gap += sp * 0.3;
+    if (Math.random() < 0.65) {
+      const n = Math.max(2, Math.floor(gap * 0.28 / 34));
+      const start = x + gap * 0.38;
+      const high = Math.random() < 0.35;
+      for (let i = 0; i < n; i++) addBall(out, start + i * 34, high ? GROUND - 105 : GROUND - 22);
+    }
+    if (Math.random() < 0.16) addBall(out, x + gap * 0.55, GROUND - 165, true);
+    if (x - lastPower > 1500 && Math.random() < 0.4) {
+      out.push({ type: 'power', kind: powers[Math.floor(Math.random() * powers.length)], x: x + gap * 0.5, y: GROUND - 115, w: 36, h: 36 });
+      lastPower = x;
+    }
+    x += gap;
+  }
+  return out;
+}
+
+function newGame() { entryState = 'none'; score = 0; lvlIdx = 0; bestCombo = 0; newRecord = false; startLevel(); }
+function startLevel() {
+  dist = 0; cards = 0; combo = 0; lvlBalls = 0;
+  ents = genLevel(lvlIdx);
+  Object.assign(P, { y: GROUND, vy: 0, onGround: true, jumps: 0, ducking: false, inv: 0, magnet: 0, turbo: 0, shield: player.shieldStart });
+  texts = []; parts = []; flash = null;
+  rain = [];
+  if (LEVELS[lvlIdx].rain) for (let i = 0; i < 140; i++) rain.push({ x: Math.random() * W, y: Math.random() * H, s: 600 + Math.random() * 400 });
+  state = 'intro'; introT = 0;
+}
+
+/* ---------- Effecten ---------- */
+function addText(x, y, txt, color = '#fff', size = 24) { texts.push({ x, y, txt, color, size, t: 0 }); }
+function burst(x, y, n, colors, opts = {}) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = (opts.speed || 200) * (0.4 + Math.random());
+    parts.push({
+      x, y, vx: Math.cos(a) * s + (opts.vx || 0), vy: Math.sin(a) * s - (opts.up || 0),
+      life: 0, max: (opts.life || 0.6) * (0.6 + Math.random() * 0.6),
+      color: colors[Math.floor(Math.random() * colors.length)], size: opts.size || 4,
+      grav: opts.grav == null ? 600 : opts.grav, world: !!opts.world, rect: !!opts.rect, rot: Math.random() * 6
+    });
+  }
+}
+
+/* ---------- Acties ---------- */
+function jump() {
+  if (state !== 'play') return;
+  if (P.onGround) {
+    P.vy = JUMP_V; P.onGround = false; P.jumps = 1; P.ducking = false; SFX.jump();
+  } else if (player.doubleJump && P.jumps < 2) {
+    P.vy = JUMP2_V; P.jumps = 2; SFX.jump();
+    burst(P.x, P.y, 10, ['#ffffff', '#ffe58a'], { speed: 120, grav: 0, life: 0.4, size: 3 });
+  }
+}
+function releaseJump() { if (state === 'play' && P.vy < -320) P.vy = -320; }
+function togglePause() {
+  if (state === 'play' || state === 'intro' || state === 'penalty') { pausedFrom = state; state = 'paused'; }
+  else if (state === 'paused') { state = pausedFrom || 'play'; }
+}
+function toggleMute() {
+  muted = !muted;
+  if (ambMaster) ambMaster.gain.value = muted ? 0 : 1;
+  document.getElementById('btnSound').textContent = muted ? 'Geluid aan' : 'Geluid uit';
+}
+function startGame() { player = PLAYERS[sel]; SFX.whistle(); newGame(); }
+function toMenu() { state = 'menu'; }
+function finishGame(won) {
+  const s = Math.floor(score);
+  newRecord = s > hi.score;
+  if (newRecord) { hi = { score: s, name: player.name }; saveHi(hi); }
+  state = won ? 'win' : 'over';
+  entryState = s > 0 ? 'open' : 'none'; savedEntryId = null; savedEntry = null;
+}
+
+function shoot() {
+  if (!pen || pen.phase !== 'aim') return;
+  pen.phase = 'shot'; pen.target = pen.aimX; pen.targetY = pen.aimY; pen.shotT = 0; SFX.kick();
+  const wrong = Math.random() < [0.3, 0.35, 0.35][lvlIdx];
+  pen.kTarget = wrong ? 960 - pen.target : pen.target;
+  pen.dir = Math.sign(pen.kTarget - pen.kx) || 1;
+}
+function nextAfterLevel() {
+  if (lvlIdx >= LEVELS.length - 1) { finishGame(true); burst(W / 2, 140, 120, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 380, grav: 300, life: 2.5, size: 6, rect: true }); }
+  else { lvlIdx++; startLevel(); }
+}
+
+/* ---------- Invoer ---------- */
+window.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  keys[e.code] = true;
+  if (e.repeat) return;
+  audio();
+  const c = e.code;
+  if (c === 'KeyM') { toggleMute(); return; }
+  if (state === 'menu') {
+    if (c === 'ArrowLeft' || c === 'KeyA') { sel = (sel + 2) % 3; SFX.select(); }
+    else if (c === 'ArrowRight' || c === 'KeyD') { sel = (sel + 1) % 3; SFX.select(); }
+    else if (c === 'Digit1' || c === 'Digit2' || c === 'Digit3') { sel = Number(c.slice(-1)) - 1; SFX.select(); }
+    else if (c === 'Enter' || c === 'Space') startGame();
+    else if (c === 'KeyR') openRanking();
+  } else if (state === 'ranking') {
+    if (c === 'Escape' || c === 'Backspace') closeRanking();
+    else if (c === 'Space' || c === 'Enter') { player = PLAYERS[sel]; SFX.whistle(); newGame(); }
+  } else if (state === 'play') {
+    if (c === 'Space' || c === 'ArrowUp' || c === 'KeyW') jump();
+    else if (c === 'KeyP' || c === 'Escape') togglePause();
+  } else if (state === 'intro') {
+    if (c === 'KeyP' || c === 'Escape') togglePause();
+  } else if (state === 'paused') {
+    if (c === 'KeyP' || c === 'Escape' || c === 'Space' || c === 'Enter') togglePause();
+  } else if (state === 'penalty') {
+    if (c === 'Space' || c === 'Enter') shoot();
+    else if (c === 'KeyP' || c === 'Escape') togglePause();
+  } else if (state === 'levelEnd') {
+    if (c === 'Space' || c === 'Enter') nextAfterLevel();
+  } else if (state === 'over' || state === 'win') {
+    if (c === 'Space' || c === 'Enter') { SFX.whistle(); newGame(); }
+    else if (c === 'KeyC' || c === 'Escape') toMenu();
+    else if (c === 'KeyR') openRanking();
+  }
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') releaseJump();
+});
+
+function toGame(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+}
+canvas.addEventListener('pointerdown', e => {
+  audio();
+  canvas.focus({ preventScroll: true });
+  const p = toGame(e);
+  for (const b of buttons) {
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) { b.action(); e.preventDefault(); return; }
+  }
+  if (state === 'play') {
+    if (p.x < W * 0.4) { touchDuck = true; duckPointer = e.pointerId; }
+    else { jump(); jumpPointer = e.pointerId; }
+  } else if (state === 'penalty') {
+    if (pen && pen.phase === 'aim' && p.x > 250 && p.x < 710 && p.y > 140 && p.y < 390) pen.aimY = clamp(p.y, AIM_TOP, AIM_LOW);
+    shoot();
+  }
+  else if (state === 'paused') togglePause();
+  e.preventDefault();
+});
+function endPointer(e) {
+  if (e.pointerId === duckPointer) { touchDuck = false; duckPointer = null; }
+  if (e.pointerId === jumpPointer) { releaseJump(); jumpPointer = null; }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointermove', e => {
+  const p = toGame(e); mouse = p;
+  let over = false;
+  for (const b of buttons) if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) over = true;
+  canvas.style.cursor = over ? 'pointer' : 'default';
+});
+canvas.addEventListener('pointerleave', () => { mouse = { x: -1, y: -1 }; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+document.getElementById('btnPause').addEventListener('click', () => { audio(); togglePause(); canvas.focus(); });
+document.getElementById('btnSound').addEventListener('click', () => { audio(); toggleMute(); canvas.focus(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && (state === 'play' || state === 'penalty' || state === 'intro')) togglePause();
+});
+
+/* ---------- Ranglijst ----------
+   De scores worden bewaard in de database van dit artifact (los van de pagina),
+   zodat ze blijven bestaan, ook als je de browser of de cache leegmaakt.
+   Zonder database valt het spel terug op opslag in deze browser. */
+let db = null, dl = null, ranking = [], rankStatus = 'loading', rankFrom = 'menu';
+let entryState = 'none', savedEntryId = null, savedEntry = null, dlMsg = null;
+const entryEl = document.getElementById('entry');
+const nameInput = document.getElementById('nameInput');
+const saveBtn = document.getElementById('saveBtn');
+try { nameInput.value = localStorage.getItem('doorbraak-naam') || ''; } catch (e) {}
+
+function loadLocalRanking() {
+  try { const v = JSON.parse(localStorage.getItem('doorbraak-ranglijst') || '[]'); return Array.isArray(v) ? v : []; }
+  catch (e) { return []; }
+}
+function useLocal() {
+  db = null; rankStatus = 'local';
+  ranking = loadLocalRanking().sort((a, b) => b.score - a.score);
+}
+function subscribeRanking() {
+  const timer = setTimeout(() => { if (rankStatus === 'loading') rankStatus = 'slow'; }, 10000);
+  db.collection('scores').orderBy('score', 'desc').limit(200).onSnapshot(snap => {
+    ranking = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    if (!snap.metadata.fromCache) { clearTimeout(timer); rankStatus = 'ok'; }
+    else if (rankStatus === 'loading') rankStatus = 'ok';
+  }, () => { clearTimeout(timer); rankStatus = 'error'; });
+}
+if (window.claude && typeof window.claude.use === 'function') {
+  window.claude.use('db').then(d => { if (d) { db = d; subscribeRanking(); } else useLocal(); }).catch(useLocal);
+  window.claude.use('downloads').then(d => { dl = d; }).catch(() => {});
+} else useLocal();
+
+async function saveScore() {
+  const name = nameInput.value.trim().slice(0, 16);
+  if (!name) { nameInput.focus(); return; }
+  if (entryState === 'saving' || entryState === 'saved') return;
+  try { localStorage.setItem('doorbraak-naam', name); } catch (e) {}
+  const entry = { name, score: Math.floor(score), speler: player.name, level: lvlIdx + 1, kampioen: state === 'win', datum: new Date().toISOString() };
+  entryState = 'saving';
+  if (db) {
+    const attempt = () => db.collection('scores').add(entry);
+    try {
+      let ref;
+      try { ref = await attempt(); }
+      catch (e) {
+        if (e && e.code === 'unavailable') { await new Promise(r => setTimeout(r, 600 + Math.random() * 600)); ref = await attempt(); }
+        else throw e;
+      }
+      savedEntryId = ref.id; savedEntry = entry; entryState = 'saved';
+    } catch (e) { entryState = 'error'; }
+  } else {
+    const list = loadLocalRanking();
+    const id = 'L' + Date.now();
+    list.push(Object.assign({ id }, entry));
+    try { localStorage.setItem('doorbraak-ranglijst', JSON.stringify(list)); } catch (e) {}
+    ranking = list.sort((a, b) => b.score - a.score);
+    savedEntryId = id; savedEntry = entry; entryState = 'saved';
+  }
+  canvas.focus({ preventScroll: true });
+}
+entryEl.addEventListener('submit', e => { e.preventDefault(); audio(); saveScore(); });
+
+function syncEntryForm() {
+  const show = (state === 'over' || state === 'win') && (entryState === 'open' || entryState === 'saving' || entryState === 'error');
+  if (entryEl.hidden === show) entryEl.hidden = !show;
+  const busy = entryState === 'saving';
+  if (saveBtn.disabled !== busy) { saveBtn.disabled = busy; nameInput.disabled = busy; saveBtn.textContent = busy ? 'Opslaan…' : 'Zet op de ranglijst'; }
+}
+function openRanking() {
+  rankFrom = (state === 'over' || state === 'win') ? state : 'menu';
+  state = 'ranking'; dlMsg = null; SFX.select();
+}
+function closeRanking() { state = rankFrom; SFX.select(); }
+function myRank() {
+  if (!savedEntryId) return 0;
+  const i = ranking.findIndex(r => r.id === savedEntryId);
+  return i + 1;
+}
+async function downloadRanking() {
+  if (!dl) return;
+  let rows = ranking;
+  if (db) { try { const snap = await db.collection('scores').orderBy('score', 'desc').limit(1000).get(); rows = snap.docs.map(d => d.data()); } catch (e) {} }
+  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = ['Plek;Naam;Punten;Speler;Gehaald;Datum'];
+  rows.forEach((r, i) => {
+    const d = r.datum ? new Date(r.datum) : null;
+    const datum = d && !isNaN(d) ? d.toLocaleDateString('nl-NL') + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '';
+    lines.push([i + 1, esc(r.name), r.score, esc(r.speler), esc(r.kampioen ? 'Kampioen' : 'Level ' + r.level), esc(datum)].join(';'));
+  });
+  try {
+    await dl.save({ filename: 'tackle-terror-ranglijst.csv', data: '\ufeff' + lines.join('\r\n') });
+    dlMsg = 'Ranglijst gedownload';
+  } catch (e) {
+    dlMsg = e && e.code === 'declined' ? null : 'Downloaden lukt hier niet';
+  }
+}
+
+/* ---------- Update ---------- */
+function update(dt) {
+  time += dt;
+  updateAmbience(dt);
+  if (state !== 'paused') {
+    for (const t of texts) { t.t += dt; t.y -= 40 * dt; }
+    texts = texts.filter(t => t.t < 1.2);
+    for (const p of parts) {
+      p.life += dt; p.vy += p.grav * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += dt * 6;
+    }
+    parts = parts.filter(p => p.life < p.max);
+    cheer = Math.max(0, cheer - dt);
+    shake = Math.max(0, shake - dt);
+    if (flash) { flash.t += dt; if (flash.t > 1.1) flash = null; }
+  }
+  switch (state) {
+    case 'menu': case 'ranking': menuScroll += 70 * dt; break;
+    case 'intro':
+      introT += dt; P.anim += dt * 3;
+      if (introT > 2.4) { state = 'play'; SFX.whistle(); }
+      break;
+    case 'play': updatePlay(dt); break;
+    case 'red':
+      redT += dt;
+      if (redT > 2.0) finishGame(false);
+      break;
+    case 'penalty': updatePenalty(dt); break;
+  }
+  if (rain.length && state !== 'paused') {
+    for (const d of rain) { d.y += d.s * dt; d.x -= d.s * 0.25 * dt; if (d.y > H) { d.y = -10; d.x = Math.random() * (W + 100); } }
+  }
+}
+
+function updatePlay(dt) {
+  const L = LEVELS[lvlIdx];
+  const sp = L.speed * player.speedMul * (P.turbo > 0 ? 1.35 : 1);
+  dist += sp * dt;
+  for (const p of parts) if (p.world) p.x -= sp * dt;
+
+  const wantDuck = keys.ArrowDown || keys.KeyS || touchDuck;
+  if (P.onGround) P.ducking = !!wantDuck;
+  else { P.ducking = false; if (wantDuck) P.vy += 3200 * dt; }
+  P.vy += GRAV * dt; P.y += P.vy * dt;
+  if (P.y >= GROUND) {
+    if (!P.onGround) burst(P.x, GROUND, 6, ['#d9e8c8', '#a7c98f'], { speed: 90, up: 60, life: 0.35, size: 3, world: true });
+    P.y = GROUND; P.vy = 0; P.onGround = true; P.jumps = 0;
+  }
+  P.inv = Math.max(0, P.inv - dt);
+  P.magnet = Math.max(0, P.magnet - dt);
+  P.turbo = Math.max(0, P.turbo - dt);
+  P.anim += dt * (sp / 340) * 13;
+  if (P.onGround && Math.random() < dt * (P.ducking ? 30 : 8)) burst(P.x + (P.ducking ? 28 : -10), GROUND, 1, ['#cfe3b8'], { speed: 40, up: 40, life: 0.3, size: 2.5, world: true });
+  if (P.turbo > 0) burst(P.x - 20, P.y - 35 - Math.random() * 30, 1, ['#ffe066', '#ff9f1c'], { speed: 30, vx: -200, grav: 0, life: 0.3, size: 3 });
+
+  const pr = P.ducking ? { x: P.x - 34, y: P.y - 32, w: 56, h: 30 } : { x: P.x - 13, y: P.y - 70, w: 26, h: 68 };
+  const pcx = P.x + dist, pcy = P.y - 35;
+
+  for (const e of ents) {
+    if (e.dead) continue;
+    if (e.knocked) {
+      e.kvy += 1800 * dt; e.x += e.kvx * dt; e.y += e.kvy * dt; e.krot = (e.krot || 0) + dt * 10;
+      if (e.y > H + 100) e.dead = true;
+      continue;
+    }
+    const sx = e.x - dist;
+    if (sx < -220) { e.dead = true; continue; }
+    if (e.vx && sx < W + 60) e.x += e.vx * dt;
+    if (P.magnet > 0 && (e.type === 'ball' || e.type === 'gold')) {
+      const dx = pcx - e.x, dy = pcy - e.y, d = Math.hypot(dx, dy);
+      if (d < 260 && d > 1) { const m = Math.min(d, 700 * dt); e.x += dx / d * m; e.y += dy / d * m; }
+    }
+    let r;
+    if (e.type === 'ball' || e.type === 'gold' || e.type === 'power') r = { x: e.x - dist - e.w / 2, y: e.y - e.h / 2, w: e.w, h: e.h };
+    else r = { x: e.x - dist + 5, y: e.y + 3, w: e.w - 10, h: e.h - 4 };
+    if (!overlap(pr, r)) continue;
+    if (e.type === 'mud' && !P.onGround) continue;
+    collide(e, r);
+  }
+
+  if (L.length - dist <= P.x + 30) startPenalty();
+}
+
+function collide(e, r) {
+  const mul = player.scoreMul;
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+  if (e.type === 'ball' || e.type === 'gold') {
+    e.dead = true; combo++; lvlBalls++; bestCombo = Math.max(bestCombo, combo);
+    if (e.type === 'gold') {
+      score += 5 * mul; SFX.gold(); addText(cx, cy - 10, '+' + (5 * mul), '#ffd84a', 26);
+      burst(cx, cy, 16, ['#ffd84a', '#fff4b0', '#ffffff'], { speed: 180, grav: 200, life: 0.6, size: 3.5 });
+    } else {
+      score += mul; SFX.ball();
+      burst(cx, cy, 6, ['#ffffff', '#e8f3ff'], { speed: 110, grav: 200, life: 0.35, size: 2.5 });
+    }
+    if (combo > 0 && combo % 10 === 0) {
+      score += 5; cheer = 1.6; SFX.cheer();
+      addText(P.x + 40, P.y - 110, 'Combo ' + combo + '! +5', '#ffb627', 30);
+    }
+    return;
+  }
+  if (e.type === 'power') {
+    e.dead = true; SFX.power();
+    burst(cx, cy, 20, ['#7ae7ff', '#ffffff', '#ffe066'], { speed: 200, grav: 0, life: 0.5, size: 3.5 });
+    if (e.kind === 'boots') { P.turbo = 5; addText(cx, cy - 20, 'Turboschoenen!', '#ffe066', 28); }
+    else if (e.kind === 'shield') { P.shield = true; addText(cx, cy - 20, 'Aanvoerdersband: schild!', '#7ae7ff', 26); }
+    else { P.magnet = 8; addText(cx, cy - 20, 'Ballenmagneet!', '#ff7a7a', 28); }
+    return;
+  }
+  if (e.type === 'mud') {
+    if (e.used) return;
+    e.used = true; combo = 0; score = Math.max(0, score - 5); SFX.splash();
+    addText(P.x + 20, P.y - 90, 'Modder! -5', '#c9945a', 26);
+    burst(P.x, GROUND - 4, 18, ['#6b4a2b', '#8a623b', '#4f3520'], { speed: 220, up: 180, life: 0.6, size: 4, world: true });
+    return;
+  }
+  // tegenstanders, pionnen en de scheids
+  if (P.turbo > 0) {
+    e.knocked = true; e.kvx = 500; e.kvy = -700;
+    score += 3 * player.scoreMul; SFX.kick(); shake = 0.15;
+    addText(cx, cy - 30, 'Weggebeukt! +' + 3 * player.scoreMul, '#ffe066', 26);
+    return;
+  }
+  if (P.inv > 0) return;
+  if (P.shield) {
+    P.shield = false; P.inv = 1.0; SFX.kick(); shake = 0.15;
+    e.knocked = true; e.kvx = 400; e.kvy = -600;
+    addText(P.x + 20, P.y - 100, 'Schild opgevangen!', '#7ae7ff', 26);
+    burst(P.x, P.y - 35, 24, ['#7ae7ff', '#ffffff'], { speed: 260, grav: 0, life: 0.45, size: 3 });
+    return;
+  }
+  cards++; combo = 0; shake = 0.35;
+  SFX.hit();
+  burst(P.x, P.y - 30, 14, ['#ffffff', '#ffd0d0'], { speed: 200, grav: 400, life: 0.5, size: 3 });
+  if (cards >= 2) {
+    state = 'red'; redT = 0; flash = { color: '#e5262b', t: 0 }; SFX.red();
+  } else {
+    P.inv = 1.8; flash = { color: '#ffd400', t: 0 }; SFX.yellow();
+    const msg = { slide: 'Sliding! Gele kaart', high: 'Hoge trap! Gele kaart', cone: 'Struikel over een pion! Gele kaart', ref: 'Botsing met de scheids! Gele kaart' }[e.type];
+    addText(P.x + 40, P.y - 110, msg, '#ffd400', 26);
+  }
+}
+
+function startPenalty() {
+  state = 'penalty'; SFX.whistle();
+  pen = { t: 0, phase: 'aim', aimX: 480, aimY: 265, kx: 480, kTarget: 480, target: 480, targetY: 265, shotT: 0, rt: 0, result: null, dir: 1 };
+}
+function updatePenalty(dt) {
+  pen.t += dt;
+  const li = lvlIdx;
+  if (pen.phase === 'aim') {
+    pen.aimX = 480 + Math.sin(pen.t * [2.2, 2.5, 2.8][li]) * 190;
+    pen.kx = 480 + Math.sin(pen.t * 1.6 + 0.7) * 70;
+    if (keys.ArrowUp || keys.KeyW) pen.aimY -= 230 * dt;
+    if (keys.ArrowDown || keys.KeyS) pen.aimY += 230 * dt;
+    pen.aimY = clamp(pen.aimY, AIM_TOP, AIM_LOW);
+  } else if (pen.phase === 'shot') {
+    pen.shotT += dt;
+    const ds = [240, 255, 270][li] * dt, d = pen.kTarget - pen.kx;
+    pen.kx += Math.sign(d) * Math.min(Math.abs(d), ds);
+    if (pen.shotT >= 0.45) {
+      // hoog in de hoek is lastiger te pakken voor de keeper
+      const topness = clamp((265 - pen.targetY) / (265 - AIM_TOP), 0, 1);
+      const saved = Math.abs(pen.kx - pen.target) < 48 - 16 * topness;
+      pen.result = saved ? 'saved' : 'goal'; pen.phase = 'result'; pen.rt = 0;
+      const bonus = 25 * (li + 1);
+      if (!saved) {
+        score += bonus; cheer = 2.5; SFX.cheer();
+        burst(pen.target, pen.targetY, 70, ['#ffb627', '#ffffff', player.kit, '#27c46a'], { speed: 320, grav: 350, life: 1.6, size: 5, rect: true });
+      } else SFX.sad();
+      lastPenalty = { goal: !saved, bonus };
+    }
+  } else if (pen.phase === 'result') {
+    pen.rt += dt;
+    if (pen.rt > 2.0) { state = 'levelEnd'; }
+  }
+}
+
+/* ---------- Tekenen: figuren ---------- */
+function limb(x0, y0, a, k, l1, l2, c1, c2, w) {
+  const kx = x0 + Math.sin(a) * l1, ky = y0 + Math.cos(a) * l1;
+  const a2 = a - k;
+  const fx = kx + Math.sin(a2) * l2, fy = ky + Math.cos(a2) * l2;
+  ctx.lineWidth = w;
+  ctx.strokeStyle = c1; line(x0, y0, kx, ky);
+  ctx.strokeStyle = c2; line(kx, ky, fx, fy);
+  return { fx, fy };
+}
+function drawFootballer(x, y, o) {
+  const pose = o.pose || 'run', ph = o.phase || 0, s = o.s || 1;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale((o.dir || 1) * s, s);
+  let rot = 0;
+  if (pose === 'duck') rot = -1.15;
+  else if (pose === 'slide') rot = -1.25;
+  else if (pose === 'dive') rot = 1.5;
+  if (o.rot != null) rot = o.rot;
+  ctx.rotate(rot);
+  let fA = 0, fK = 0, bA = 0, bK = 0, armF = 0, armB = 0, bob = 0;
+  switch (pose) {
+    case 'run':
+      fA = Math.sin(ph) * 0.75; bA = -fA;
+      fK = Math.max(0, Math.sin(ph + 1.2)) * 1.0; bK = Math.max(0, Math.sin(ph + 1.2 + Math.PI)) * 1.0;
+      armF = -Math.sin(ph) * 0.9; armB = -armF; bob = Math.abs(Math.sin(ph)) * -2; break;
+    case 'jump':   fA = 0.9; fK = 1.7; bA = 0.1; bK = 1.0; armF = 2.3; armB = -2.0; break;
+    case 'slide': case 'duck': fA = 0.35; fK = 0; bA = -0.4; bK = 1.4; armF = 2.4; armB = -0.8; break;
+    case 'dive':   fA = 0; fK = 0.3; bA = 0.3; bK = 0.5; armF = 3.0; armB = 2.8; break;
+    case 'kick':   fA = 1.3; fK = 0.2; bA = -0.3; bK = 0.3; armF = -0.8; armB = 1.2; break;
+    case 'keeper': fA = 0.35; bA = -0.35; fK = 0.3; bK = 0.3; armF = 1.3; armB = -1.3; bob = Math.sin(ph) * 1.5; break;
+    default:       fA = 0.08; bA = -0.08; fK = 0.1; bK = 0.1; armF = 0.25; armB = -0.25; bob = Math.sin(ph) * 1.2;
+  }
+  if (o.cardUp) armF = 3.0;
+  ctx.translate(0, bob);
+  ctx.lineCap = 'round';
+  const sh = { x: 0, y: -58 }, hip = { x: 0, y: -34 };
+  const dark = 'rgba(0,0,0,0.25)';
+  // achterste arm en been
+  limb(sh.x - 1, sh.y, armB, -0.5, 11, 11, o.kit, o.skin, 6);
+  ctx.strokeStyle = dark; ctx.lineWidth = 6;
+  let f = limb(hip.x - 2, hip.y, bA, bK, 17, 17, o.skin, o.socks, 7);
+  ctx.fillStyle = '#151515'; ctx.beginPath(); ctx.ellipse(f.fx + 2, f.fy, 6, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  // voorste been
+  f = limb(hip.x + 1, hip.y, fA, fK, 17, 17, o.skin, o.socks, 7);
+  ctx.fillStyle = '#151515'; ctx.beginPath(); ctx.ellipse(f.fx + 2, f.fy, 6, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  // broek en shirt
+  ctx.fillStyle = o.shorts; rr(-11, -39, 22, 11, 3); ctx.fill();
+  ctx.fillStyle = o.kit; rr(-11, -64, 22, 28, 6); ctx.fill();
+  if (o.nr !== '' && o.nr != null) {
+    ctx.fillStyle = lum(o.kit) > 0.6 ? '#1a1a1a' : '#ffffff';
+    ctx.font = `700 13px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(o.nr), -1, -50);
+  }
+  // hoofd
+  ctx.fillStyle = o.skin; ctx.beginPath(); ctx.arc(1, -75, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = o.hair; ctx.beginPath(); ctx.arc(1, -77, 10.6, Math.PI * 1.02, Math.PI * 1.98); ctx.fill();
+  ctx.fillRect(-9.6, -78, 5, 8);
+  ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(6.5, -75.5, 1.6, 0, Math.PI * 2); ctx.fill();
+  // voorste arm
+  const hand = limb(sh.x + 1, sh.y, armF, -0.5, 11, 11, o.kit, o.skin, 6);
+  if (o.cardUp) { ctx.fillStyle = '#ffd400'; ctx.fillRect(hand.fx - 4, hand.fy - 12, 9, 12); }
+  if (o.gloves) { ctx.fillStyle = '#f5f5f5'; ctx.beginPath(); ctx.arc(hand.fx, hand.fy, 4.5, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawBall(x, y, r, rot, gold) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+  if (gold) {
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 1, 0, 0, r);
+    g.addColorStop(0, '#fff6c2'); g.addColorStop(1, '#e0a500');
+    ctx.fillStyle = g;
+  } else ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = gold ? '#8a5a00' : '#1d1d1d';
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5; ctx.lineTo(Math.cos(a) * r * 0.38, Math.sin(a) * r * 0.38); }
+  ctx.closePath(); ctx.fill();
+  for (let i = 0; i < 5; i++) {
+    const a = Math.PI / 2 + i * Math.PI * 2 / 5;
+    ctx.beginPath(); ctx.arc(Math.cos(a) * r * 1.0, Math.sin(a) * r * 1.0, r * 0.32, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  ctx.strokeStyle = gold ? '#8a5a00' : '#2a2a2a'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawPowerIcon(kind, x, y, r) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (kind === 'boots') {
+    ctx.fillStyle = '#ffe066';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.55, -r * 0.6); ctx.lineTo(-r * 0.1, -r * 0.6); ctx.lineTo(-r * 0.05, -r * 0.05);
+    ctx.lineTo(r * 0.7, r * 0.1); ctx.quadraticCurveTo(r * 0.85, r * 0.45, r * 0.6, r * 0.45);
+    ctx.lineTo(-r * 0.6, r * 0.45); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1d1d1d';
+    for (let i = 0; i < 4; i++) ctx.fillRect(-r * 0.5 + i * r * 0.33, r * 0.45, r * 0.12, r * 0.18);
+    ctx.strokeStyle = '#ff6a00'; ctx.lineWidth = 2;
+    line(-r * 0.95, -r * 0.2, -r * 0.7, -r * 0.2); line(-r * 0.95, r * 0.15, -r * 0.7, r * 0.15);
+  } else if (kind === 'shield') {
+    ctx.fillStyle = '#7ae7ff'; rr(-r * 0.75, -r * 0.4, r * 1.5, r * 0.8, 4); ctx.fill();
+    ctx.fillStyle = '#0d3b52'; ctx.font = `${Math.round(r * 0.9)}px ${FD}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('C', 0, r * 0.05);
+  } else {
+    ctx.strokeStyle = '#ff4d4d'; ctx.lineWidth = r * 0.36;
+    ctx.beginPath(); ctx.arc(0, -r * 0.05, r * 0.45, Math.PI, 0, true); ctx.stroke();
+    ctx.strokeStyle = '#e8e8e8';
+    line(-r * 0.45, -r * 0.05, -r * 0.45, -r * 0.5); line(r * 0.45, -r * 0.05, r * 0.45, -r * 0.5);
+  }
+  ctx.restore();
+}
+function drawPower(e, sx) {
+  const y = e.y + Math.sin(time * 4 + e.x) * 5;
+  ctx.save();
+  const g = ctx.createRadialGradient(sx, y, 4, sx, y, 30);
+  g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, y, 30, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(20,40,70,0.75)'; ctx.beginPath(); ctx.arc(sx, y, 19, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+  drawPowerIcon(e.kind, sx, y, 14);
+}
+function shadow(x, w, alpha = 0.22) {
+  ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+  ctx.beginPath(); ctx.ellipse(x, GROUND + 2, w, 5, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawEntity(e) {
+  const sx = e.x - dist;
+  if (sx < -200 || sx > W + 200) return;
+  if (e.knocked) {
+    ctx.save(); ctx.translate(sx + e.w / 2, e.y + e.h / 2); ctx.rotate(e.krot || 0); ctx.translate(-(sx + e.w / 2), -(e.y + e.h / 2));
+  }
+  switch (e.type) {
+    case 'ball': {
+      const y = e.y + Math.sin(time * 5 + e.x * 0.05) * 3;
+      drawBall(sx, y, 11, time * 2 + e.x);
+      break;
+    }
+    case 'gold': {
+      const y = e.y + Math.sin(time * 5 + e.x * 0.05) * 3;
+      const g = ctx.createRadialGradient(sx, y, 4, sx, y, 26);
+      g.addColorStop(0, 'rgba(255,220,80,0.6)'); g.addColorStop(1, 'rgba(255,220,80,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, y, 26, 0, Math.PI * 2); ctx.fill();
+      drawBall(sx, y, 13, time * 3, true);
+      break;
+    }
+    case 'power': drawPower(e, sx); break;
+    case 'cone':
+      if (!e.knocked) shadow(sx + 13, 16);
+      ctx.fillStyle = '#ff7a1a';
+      ctx.beginPath(); ctx.moveTo(sx + 13, e.y); ctx.lineTo(sx + 24, e.y + e.h - 4); ctx.lineTo(sx + 2, e.y + e.h - 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(sx + 7, e.y + 14, 12, 5);
+      ctx.fillStyle = '#e0600a'; ctx.fillRect(sx - 2, e.y + e.h - 5, 30, 5);
+      break;
+    case 'mud':
+      ctx.fillStyle = '#5a3d22'; ctx.beginPath(); ctx.ellipse(sx + 60, GROUND - 1, 62, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#7a5532'; ctx.beginPath(); ctx.ellipse(sx + 50, GROUND - 3, 34, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.ellipse(sx + 75, GROUND - 3, 12, 2, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'slide':
+      if (!e.knocked) shadow(sx + 40, 42);
+      drawFootballer(sx + 10, e.knocked ? e.y + e.h : GROUND - 2, Object.assign({}, OPP, { pose: 'slide', dir: -1, phase: 0 }));
+      if (!e.knocked && sx < W && Math.random() < 0.3) burst(sx + 4, GROUND - 2, 1, ['#d9e8c8', '#a7c98f'], { speed: 60, up: 60, life: 0.3, size: 2.5, world: true });
+      break;
+    case 'high':
+      shadow(sx + 37, 34, 0.15);
+      drawFootballer(sx + e.w, e.y + e.h / 2, Object.assign({}, OPP, { pose: 'dive', dir: -1 }));
+      break;
+    case 'ref':
+      if (!e.knocked) shadow(sx + 15, 18);
+      drawFootballer(sx + 15, e.knocked ? e.y + e.h : GROUND, Object.assign({}, REF, { pose: 'run', dir: -1, phase: time * 7, cardUp: true }));
+      break;
+  }
+  if (e.knocked) ctx.restore();
+}
+
+function drawPlayer(pose) {
+  const blink = P.inv > 0 && Math.floor(time * 14) % 2 === 0;
+  if (P.turbo > 0) {
+    ctx.save(); ctx.globalAlpha = 0.25;
+    for (let i = 1; i <= 3; i++) drawFootballer(P.x - i * 16, P.y, Object.assign({}, player, { pose, phase: P.anim - i * 0.4 }));
+    ctx.restore();
+  }
+  shadow(P.x + (P.ducking ? -12 : 0), P.onGround ? 20 : Math.max(8, 20 - (GROUND - P.y) * 0.08), P.onGround ? 0.25 : 0.15);
+  if (!blink) {
+    const px = P.ducking ? P.x + 18 : P.x;
+    drawFootballer(px, P.y, Object.assign({}, player, { pose, phase: P.anim }));
+  }
+  // de bal aan je voeten
+  const bx = P.x + (P.ducking ? 44 : 24), by = P.onGround ? GROUND - 8 - Math.abs(Math.sin(P.anim * 0.5)) * 6 : P.y - 6;
+  if (state !== 'red') drawBall(bx, by, 8, P.anim * 0.8);
+  if (P.shield) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(122,231,255,${0.55 + Math.sin(time * 6) * 0.2})`; ctx.lineWidth = 3;
+    ctx.fillStyle = 'rgba(122,231,255,0.10)';
+    ctx.beginPath(); ctx.ellipse(P.x + (P.ducking ? -12 : 2), P.y - (P.ducking ? 22 : 40), P.ducking ? 46 : 34, P.ducking ? 30 : 50, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  if (P.magnet > 0) {
+    ctx.save(); ctx.strokeStyle = `rgba(255,90,90,${0.25 + 0.15 * Math.sin(time * 8)})`; ctx.lineWidth = 2;
+    ctx.setLineDash([6, 8]); ctx.lineDashOffset = -time * 40;
+    ctx.beginPath(); ctx.arc(P.x, P.y - 35, 80 + Math.sin(time * 5) * 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* ---------- Tekenen: achtergrond ---------- */
+function drawSky(L, sc) {
+  const g = ctx.createLinearGradient(0, 0, 0, 380);
+  g.addColorStop(0, L.sky[0]); g.addColorStop(1, L.sky[1]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 380);
+  if (L.night) {
+    for (let i = 0; i < 70; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${0.25 + 0.5 * hsh(i + 3) * (0.7 + 0.3 * Math.sin(time * 2 + i))})`;
+      ctx.fillRect(hsh(i + 7) * W, hsh(i + 99) * 140, 2, 2);
+    }
+    ctx.fillStyle = '#f4f1d8'; ctx.beginPath(); ctx.arc(820, 60, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = L.sky[0]; ctx.beginPath(); ctx.arc(810, 54, 20, 0, Math.PI * 2); ctx.fill();
+  } else {
+    if (!L.rain) {
+      ctx.fillStyle = 'rgba(255,244,190,0.9)'; ctx.beginPath(); ctx.arc(110, 70, 30, 0, Math.PI * 2); ctx.fill();
+    }
+    for (let i = 0; i < 6; i++) {
+      const cx = mod(hsh(i + 1) * 1500 - sc * 0.05, 1500) - 220, cy = 35 + hsh(i + 20) * 110;
+      ctx.fillStyle = L.rain ? 'rgba(80,92,104,0.85)' : 'rgba(255,255,255,0.9)';
+      const s = L.rain ? 1.6 : 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 50 * s, 18 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 35 * s, cy - 10 * s, 34 * s, 20 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx - 32 * s, cy - 5 * s, 28 * s, 15 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+function drawCrowd(top, bottom, par, sc, palette) {
+  const step = 13, off = mod(sc * par, step), base = Math.floor(sc * par / step);
+  let row = 0;
+  for (let y = top; y < bottom; y += 15, row++) {
+    for (let x = -off - step, ci = -1; x < W + step; x += step, ci++) {
+      const id = (base + ci) * 31 + row * 977;
+      const hv = hsh(id);
+      if (hv < 0.08) continue;
+      const amp = cheer > 0 ? 5 : 1.2;
+      const by = y + Math.sin(time * (cheer > 0 ? 14 : 3) + id) * amp * hsh(id + 5);
+      ctx.fillStyle = palette[Math.floor(hsh(id + 1) * palette.length)];
+      ctx.fillRect(x - 5, by + 4, 10, 8);
+      ctx.fillStyle = ['#f1c7a1', '#c98e62', '#8d5a3b', '#e0b48e', '#5a3a26'][Math.floor(hsh(id + 2) * 5)];
+      ctx.beginPath(); ctx.arc(x, by, 4.2, 0, Math.PI * 2); ctx.fill();
+      if (cheer > 0 && hsh(id + 9) > 0.6) {
+        ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 2;
+        line(x - 4, by + 5, x - 7, by - 6); line(x + 4, by + 5, x + 7, by - 6);
+      }
+    }
+  }
+}
+function drawFar(L, sc) {
+  if (L.kind === 'training') {
+    ctx.fillStyle = '#76b06a';
+    ctx.beginPath(); ctx.moveTo(0, 340);
+    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, 280 + Math.sin((x + sc * 0.08) * 0.006) * 22 + Math.sin((x + sc * 0.08) * 0.017) * 8);
+    ctx.lineTo(W, 340); ctx.closePath(); ctx.fill();
+    const sp = 120, off = mod(sc * 0.25, sp), base = Math.floor(sc * 0.25 / sp);
+    for (let x = -off - sp, i = -1; x < W + sp; x += sp, i++) {
+      const h = hsh(base + i + 400);
+      const tx = x + h * 60, th = 50 + h * 40;
+      ctx.fillStyle = '#6d4c30'; ctx.fillRect(tx - 4, 336 - th * 0.4, 8, th * 0.4);
+      ctx.fillStyle = h > 0.5 ? '#3f8a3c' : '#4b9a44';
+      ctx.beginPath(); ctx.arc(tx, 336 - th * 0.55, th * 0.35, 0, Math.PI * 2); ctx.arc(tx - 14, 336 - th * 0.4, th * 0.25, 0, Math.PI * 2); ctx.arc(tx + 14, 336 - th * 0.42, th * 0.27, 0, Math.PI * 2); ctx.fill();
+    }
+    // een paar ouders langs de lijn
+    const so = mod(sc * 0.6, 520);
+    for (let k = -1; k < 3; k++) {
+      const gx = k * 520 - so + 200;
+      for (let j = 0; j < 4; j++) {
+        const id = Math.floor(sc * 0.6 / 520) + k;
+        drawFootballer(gx + j * 22, 340, { kit: ['#d64545', '#3b6fd1', '#f0c040', '#5aa65a'][(j + id) & 3], shorts: '#333', socks: '#333', skin: ['#f1c7a1', '#c98e62', '#8d5a3b'][(j + id) % 3], hair: '#3a2414', nr: '', pose: 'idle', phase: time * 2 + j, s: 0.5 });
+      }
+    }
+  } else if (L.kind === 'club') {
+    const sp = 140, off = mod(sc * 0.2, sp), base = Math.floor(sc * 0.2 / sp);
+    for (let x = -off - sp, i = -1; x < W + sp; x += sp, i++) {
+      const h = hsh(base + i + 900);
+      ctx.fillStyle = '#4f6a52'; ctx.beginPath(); ctx.arc(x + h * 50, 270, 40 + h * 20, 0, Math.PI * 2); ctx.fill();
+    }
+    const cw = 980, co = mod(sc * 0.35, cw);
+    for (let k = -1; k < 2; k++) {
+      const cx = k * cw - co + 120;
+      ctx.fillStyle = '#8a5a44'; ctx.fillRect(cx, 230, 260, 110);
+      ctx.fillStyle = '#4b3a33'; ctx.beginPath(); ctx.moveTo(cx - 14, 232); ctx.lineTo(cx + 130, 190); ctx.lineTo(cx + 274, 232); ctx.closePath(); ctx.fill();
+      for (let j = 0; j < 4; j++) { ctx.fillStyle = '#ffd98a'; ctx.fillRect(cx + 20 + j * 60, 255, 36, 26); ctx.fillStyle = '#6e4636'; ctx.fillRect(cx + 37 + j * 60, 255, 2, 26); }
+      ctx.fillStyle = '#f2ead8'; rr(cx + 70, 300, 120, 22, 4); ctx.fill();
+      ctx.fillStyle = '#7a2a1d'; ctx.font = `14px ${FD}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Kantine', cx + 130, 312);
+    }
+    // kleine tribune met paraplu's
+    const to = mod(sc * 0.55, 700);
+    for (let k = -1; k < 3; k++) {
+      const tx = k * 700 - to + 450;
+      ctx.fillStyle = '#5c6670'; ctx.fillRect(tx, 300, 220, 40);
+      ctx.fillStyle = '#3c444c'; ctx.fillRect(tx - 6, 260, 232, 6);
+      for (let j = 0; j < 8; j++) {
+        const id = (Math.floor(sc * 0.55 / 700) + k) * 13 + j;
+        const ux = tx + 14 + j * 27, uy = 300 + Math.sin(time * 2 + j) * 1.5;
+        ctx.fillStyle = ['#e8372c', '#ffd23f', '#1f5fbf', '#ffffff', '#27c46a'][Math.floor(hsh(id) * 5)];
+        ctx.beginPath(); ctx.arc(ux, uy, 13, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = '#222'; ctx.lineWidth = 1.5; line(ux, uy, ux, uy + 14);
+      }
+    }
+  } else {
+    // stadion
+    ctx.fillStyle = '#141b33';
+    ctx.beginPath(); ctx.moveTo(0, 130); ctx.lineTo(W, 130); ctx.lineTo(W, 340); ctx.lineTo(0, 340); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#0d1226'; ctx.fillRect(0, 118, W, 14);
+    drawCrowd(146, 330, 0.3, sc, ['#e8372c', '#ffffff', '#ffd23f', '#1f5fbf', '#ff8a3d', '#c3122b']);
+    const sp = 520, off = mod(sc * 0.3, sp);
+    for (let x = -off - sp; x < W + sp; x += sp) {
+      const lx = x + 260;
+      ctx.fillStyle = '#2a3150'; ctx.fillRect(lx - 4, 20, 8, 110);
+      ctx.fillStyle = '#d8dde8'; rr(lx - 34, 6, 68, 26, 4); ctx.fill();
+      for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) { ctx.fillStyle = '#fffbe0'; ctx.beginPath(); ctx.arc(lx - 24 + c * 16, 13 + r * 12, 4.5, 0, Math.PI * 2); ctx.fill(); }
+      const g = ctx.createRadialGradient(lx, 20, 4, lx, 20, 150);
+      g.addColorStop(0, 'rgba(255,250,215,0.55)'); g.addColorStop(1, 'rgba(255,250,215,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(lx, 20, 150, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+function drawBoards(sc) {
+  const bw = 230, off = mod(sc * 0.9, bw), base = Math.floor(sc * 0.9 / bw);
+  for (let x = -off - bw, i = -1; x < W + bw; x += bw, i++) {
+    const idx = mod(base + i, ADS.length);
+    const [bg, fg] = AD_COLORS[idx];
+    ctx.fillStyle = bg; ctx.fillRect(x, 340, bw - 4, 34);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x, 370, bw - 4, 4);
+    ctx.fillStyle = fg; ctx.font = `700 19px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ADS[idx], x + bw / 2 - 2, 357);
+  }
+}
+function drawPitch(L, sc) {
+  const sw = 90, off = mod(sc, sw * 2);
+  for (let x = -off; x < W + sw * 2; x += sw * 2) {
+    ctx.fillStyle = L.grassA; ctx.fillRect(x, 374, sw, H - 374);
+    ctx.fillStyle = L.grassB; ctx.fillRect(x + sw, 374, sw, H - 374);
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(0, 374, W, 8);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(0, 388, W, 3);
+  if (L.rain) {
+    ctx.fillStyle = 'rgba(200,220,255,0.10)';
+    for (let i = 0; i < 6; i++) { const px = mod(hsh(i + 50) * 1600 - sc, 1600) - 200; ctx.beginPath(); ctx.ellipse(px, 505 + hsh(i) * 25, 70, 6, 0, 0, Math.PI * 2); ctx.fill(); }
+  }
+}
+function drawEndGoal(L) {
+  const gx = L.length - dist + 40;
+  if (gx > W + 150 || gx < -200) return;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3;
+  line(gx - 140, 388, gx - 140, 520); // zestien-lijn
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.ellipse(gx - 90, 470, 4, 2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 8; i++) line(gx + i * 10, GROUND - 160 + i * 4, gx + i * 10, GROUND + 8);
+  for (let j = 0; j <= 8; j++) line(gx, GROUND - 160 + j * 20, gx + 80, GROUND - 128 + j * 17);
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  line(gx, GROUND + 8, gx, GROUND - 160); line(gx, GROUND - 160, gx + 80, GROUND - 128); line(gx + 80, GROUND - 128, gx + 80, GROUND + 8);
+}
+
+function drawBackground(L, sc) {
+  drawSky(L, sc);
+  drawFar(L, sc);
+  drawBoards(sc);
+  drawPitch(L, sc);
+}
+function drawWeather(L) {
+  if (L.rain) {
+    ctx.fillStyle = 'rgba(30,40,55,0.18)'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(210,225,245,0.45)'; ctx.lineWidth = 1.3;
+    for (const d of rain) line(d.x, d.y, d.x - 5, d.y + 16);
+  }
+  if (L.night) {
+    const g = ctx.createRadialGradient(W / 2, H * 0.75, 200, W / 2, H * 0.6, 700);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,5,25,0.4)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/* ---------- Tekenen: HUD en schermen ---------- */
+function panel(x, y, w, h, alpha = 0.82) {
+  ctx.fillStyle = `rgba(14,22,18,${alpha})`; rr(x, y, w, h, 10); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2; ctx.stroke();
+}
+function drawCard(x, y, w, h, color, filled) {
+  ctx.save();
+  if (filled) { ctx.fillStyle = color; rr(x, y, w, h, 3); ctx.fill(); }
+  else { ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); rr(x, y, w, h, 3); ctx.stroke(); }
+  ctx.restore();
+}
+function drawHUD() {
+  const L = LEVELS[lvlIdx];
+  panel(14, 12, 200, 62);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#9fb8a8'; ctx.font = `600 16px ${FB}`; ctx.fillText('Punten', 28, 34);
+  ctx.fillStyle = '#ffb627'; ctx.font = `30px ${FD}`; ctx.fillText(String(Math.floor(score)).padStart(4, '0'), 28, 66);
+
+  panel(226, 12, 470, 62);
+  ctx.fillStyle = '#9fb8a8'; ctx.font = `600 16px ${FB}`; ctx.fillText(`Level ${lvlIdx + 1}: ${L.name}`, 240, 34);
+  const px = 240, pw = 440, py = 54;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)'; rr(px, py - 3, pw, 6, 3); ctx.fill();
+  const prog = clamp(dist / (L.length - P.x - 30), 0, 1);
+  ctx.fillStyle = '#5bd36b'; rr(px, py - 3, Math.max(6, pw * prog), 6, 3); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
+  line(px + pw + 4, py - 10, px + pw + 4, py + 6); line(px + pw + 4, py - 10, px + pw - 8, py - 10);
+  drawBall(px + pw * prog, py, 8, dist * 0.02);
+
+  panel(708, 12, 238, 62);
+  ctx.fillStyle = '#9fb8a8'; ctx.font = `600 16px ${FB}`; ctx.fillText('Kaarten', 722, 34);
+  drawCard(724, 42, 18, 25, '#ffd400', cards >= 1);
+  drawCard(748, 42, 18, 25, '#e5262b', cards >= 2);
+  ctx.fillText('Combo', 800, 34);
+  ctx.fillStyle = combo >= 10 ? '#ffb627' : '#ffffff'; ctx.font = `24px ${FD}`; ctx.fillText(String(combo), 800, 66);
+  if (P.shield) drawPowerIcon('shield', 900, 52, 16);
+
+  let bx = 14;
+  const bars = [];
+  if (P.turbo > 0) bars.push(['boots', P.turbo / 5, 'Turbo']);
+  if (P.magnet > 0) bars.push(['magnet', P.magnet / 8, 'Magneet']);
+  for (const [k, f, label] of bars) {
+    panel(bx, 82, 150, 34, 0.7);
+    drawPowerIcon(k, bx + 20, 99, 12);
+    ctx.fillStyle = '#fff'; ctx.font = `600 15px ${FB}`; ctx.textAlign = 'left'; ctx.fillText(label, bx + 38, 104);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'; rr(bx + 92, 95, 48, 7, 3); ctx.fill();
+    ctx.fillStyle = k === 'boots' ? '#ffe066' : '#ff6b6b'; rr(bx + 92, 95, 48 * f, 7, 3); ctx.fill();
+    bx += 160;
+  }
+}
+function drawTexts() {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const t of texts) {
+    ctx.globalAlpha = clamp(1.4 - t.t * 1.2, 0, 1);
+    ctx.font = `${t.size}px ${FD}`;
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.strokeText(t.txt, t.x, t.y);
+    ctx.fillStyle = t.color; ctx.fillText(t.txt, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawParts() {
+  for (const p of parts) {
+    ctx.globalAlpha = clamp(1 - p.life / p.max, 0, 1);
+    ctx.fillStyle = p.color;
+    if (p.rect) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.size / 2, -p.size, p.size, p.size * 2); ctx.restore(); }
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+function bigTitle(txt, y, size, color = '#ffffff') {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `${size}px ${FD}`;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillText(txt, W / 2 + 4, y + 5);
+  ctx.fillStyle = color; ctx.fillText(txt, W / 2, y);
+}
+function button(x, y, w, h, label, action, primary) {
+  buttons.push({ x, y, w, h, action });
+  const hover = mouse.x >= x && mouse.x <= x + w && mouse.y >= y && mouse.y <= y + h;
+  ctx.fillStyle = primary ? (hover ? '#ffc94d' : '#ffb627') : (hover ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.13)');
+  rr(x, y, w, h, 10); ctx.fill();
+  if (!primary) { ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.stroke(); }
+  ctx.fillStyle = primary ? '#241703' : '#ffffff';
+  ctx.font = `700 24px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+}
+
+function drawMenu() {
+  const L = LEVELS[2];
+  drawBackground(L, menuScroll);
+  drawWeather(L);
+  ctx.fillStyle = 'rgba(6,12,24,0.45)'; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W / 2, 62); ctx.rotate(-0.035);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `64px ${FD}`;
+  ctx.fillStyle = '#0c1220'; ctx.fillText('Tackle Terror!', 5, 6);
+  ctx.fillStyle = '#ffb627'; ctx.fillText('Tackle Terror!', 0, 0);
+  ctx.restore();
+  ctx.fillStyle = '#e6eef8'; ctx.font = `600 21px ${FB}`; ctx.textAlign = 'center';
+  ctx.fillText('Kies je speler, verzamel ballen en ontwijk elke tackle op weg naar het doel.', W / 2, 112);
+
+  const cw = 250, gap = 28, x0 = (W - 3 * cw - 2 * gap) / 2, cy = 138, ch = 290;
+  PLAYERS.forEach((p, i) => {
+    const x = x0 + i * (cw + gap), on = i === sel;
+    const y = cy - (on ? 8 : 0);
+    buttons.push({ x, y, w: cw, h: ch, action: () => { if (sel === i) startGame(); else { sel = i; SFX.select(); } } });
+    ctx.fillStyle = on ? 'rgba(14,22,30,0.92)' : 'rgba(14,22,30,0.72)';
+    rr(x, y, cw, ch, 14); ctx.fill();
+    ctx.lineWidth = on ? 4 : 2; ctx.strokeStyle = on ? p.kit : 'rgba(255,255,255,0.15)'; ctx.stroke();
+    ctx.fillStyle = p.kit; ctx.globalAlpha = 0.18; rr(x + 10, y + 10, cw - 20, 120, 10); ctx.fill(); ctx.globalAlpha = 1;
+    drawFootballer(x + cw / 2 - 6, y + 128, Object.assign({}, p, { pose: on ? 'run' : 'idle', phase: on ? time * 12 : time * 2, s: 1.35 }));
+    if (on) drawBall(x + cw / 2 + 30, y + 118 - Math.abs(Math.sin(time * 6)) * 8, 11, time * 8);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#ffffff'; ctx.font = `20px ${FD}`; ctx.fillText(p.name, x + 18, y + 166);
+    ctx.fillStyle = p.kit; rr(x + 18, y + 178, ctx.measureText(p.kracht).width * 0 + 86, 26, 13); ctx.fill();
+    ctx.fillStyle = lum(p.kit) > 0.6 ? '#1a1a1a' : '#ffffff'; ctx.font = `700 17px ${FB}`; ctx.textAlign = 'center';
+    ctx.fillText(p.kracht, x + 18 + 43, y + 197);
+    ctx.textAlign = 'left'; ctx.fillStyle = '#c9d6e4'; ctx.font = `500 18px ${FB}`;
+    wrapText(p.desc, x + 18, y + 230, cw - 36, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = `600 15px ${FB}`; ctx.textAlign = 'right';
+    ctx.fillText('#' + p.nr, x + cw - 16, y + 30);
+  });
+  button(W / 2 - 130, 448, 260, 50, `Start met ${PLAYERS[sel].name.split(' ')[0]}`, startGame, true);
+  button(24, 448, 150, 50, 'Ranglijst', openRanking, false);
+  ctx.fillStyle = '#c9d6e4'; ctx.font = `500 17px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(coarse ? 'Tik op een speler om te kiezen' : 'Kies met de pijltjes of klik, start met spatie', W / 2, 522);
+  if (hi.score > 0) {
+    ctx.textAlign = 'right'; ctx.fillStyle = '#ffb627'; ctx.font = `600 17px ${FB}`;
+    ctx.fillText(`Record: ${hi.score} (${hi.name})`, W - 20, 522);
+  }
+}
+
+function drawScene() {
+  const L = LEVELS[lvlIdx];
+  drawBackground(L, dist);
+  drawEndGoal(L);
+  for (const e of ents) if (!e.dead && (e.type === 'mud')) drawEntity(e);
+  for (const e of ents) if (!e.dead && e.type !== 'mud') drawEntity(e);
+  let pose = 'run';
+  if (state === 'intro') pose = 'idle';
+  else if (state === 'red') pose = 'idle';
+  else if (!P.onGround) pose = 'jump';
+  else if (P.ducking) pose = 'duck';
+  drawPlayer(pose);
+  if (state === 'red') {
+    drawFootballer(P.x + 70, GROUND, Object.assign({}, REF, { pose: 'idle', dir: -1, phase: time * 2, cardUp: true }));
+  }
+  drawParts();
+  drawWeather(L);
+  drawTexts();
+  drawHUD();
+}
+
+function drawIntro() {
+  const L = LEVELS[lvlIdx];
+  const a = clamp(introT * 3, 0, 1) * clamp((2.4 - introT) * 3, 0, 1);
+  ctx.globalAlpha = a;
+  panel(W / 2 - 280, 150, 560, 210, 0.85);
+  bigTitle(`Level ${lvlIdx + 1}`, 198, 46, '#ffb627');
+  ctx.fillStyle = '#ffffff'; ctx.font = `600 28px ${FB}`; ctx.textAlign = 'center';
+  ctx.fillText(L.name, W / 2, 246);
+  ctx.fillStyle = '#c9d6e4'; ctx.font = `500 20px ${FB}`;
+  const tip = lvlIdx === 0
+    ? (coarse ? 'Tik rechts om te springen, houd links ingedrukt voor een sliding' : 'Spatie of pijltje omhoog: springen. Pijltje omlaag: sliding')
+    : lvlIdx === 1 ? 'Pas op voor modder en een rondlopende scheidsrechter' : 'Sneller dan ooit. Het hele stadion kijkt mee';
+  ctx.fillText(tip, W / 2, 288);
+  ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
+  ctx.fillText(introT < 1.6 ? 'Klaar voor de aftrap…' : 'Aftrap!', W / 2, 330);
+  ctx.globalAlpha = 1;
+}
+
+function drawFlash() {
+  if (!flash) return;
+  const t = flash.t;
+  ctx.fillStyle = flash.color;
+  ctx.globalAlpha = clamp(0.3 - t * 0.6, 0, 0.3); ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = clamp(1.4 - t * 1.4, 0, 1);
+  ctx.save(); ctx.translate(W / 2, 250); ctx.rotate(-0.15 + Math.min(t, 0.2) * 0.4);
+  const s = 0.6 + Math.min(t * 4, 0.6);
+  ctx.scale(s, s);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; rr(-40 + 6, -58 + 6, 80, 116, 8); ctx.fill();
+  ctx.fillStyle = flash.color; rr(-40, -58, 80, 116, 8); ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawPenalty() {
+  const L = LEVELS[lvlIdx];
+  drawSky(L, dist);
+  ctx.fillStyle = L.kind === 'stadium' ? '#141b33' : L.kind === 'club' ? '#5c6670' : '#76b06a';
+  ctx.fillRect(0, 120, W, 210);
+  if (L.kind !== 'training') drawCrowd(136, 316, 0, 0, ['#e8372c', '#ffffff', '#ffd23f', '#1f5fbf', '#ff8a3d', player.kit]);
+  else drawCrowd(250, 320, 0, 0, ['#d64545', '#3b6fd1', '#f0c040', '#5aa65a']);
+  // gras met perspectief
+  for (let i = 0; i < 9; i++) {
+    ctx.fillStyle = i % 2 ? L.grassA : L.grassB;
+    const y0 = 330 + Math.pow(i / 9, 1.6) * 210, y1 = 330 + Math.pow((i + 1) / 9, 1.6) * 210;
+    ctx.fillRect(0, y0, W, y1 - y0 + 1);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3;
+  line(0, 380, W, 380);
+  line(150, 380, 70, 470); line(810, 380, 890, 470); line(70, 470, 890, 470);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(480, 500, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+  // doel
+  const GX0 = 270, GX1 = 690, GT = 150, GB = 380;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(GX0 + 18, GT + 18, GX1 - GX0 - 36, GB - GT - 18);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1;
+  for (let x = GX0 + 18; x <= GX1 - 18; x += 16) line(x, GT + 18, x, GB);
+  for (let y = GT + 18; y <= GB; y += 16) line(GX0 + 18, y, GX1 - 18, y);
+  line(GX0, GT, GX0 + 18, GT + 18); line(GX1, GT, GX1 - 18, GT + 18);
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+  line(GX0, GB, GX0, GT); line(GX0, GT, GX1, GT); line(GX1, GT, GX1, GB);
+  // keeper
+  let krot = 0, ky = 380;
+  if (pen.phase !== 'aim') {
+    const p = clamp((pen.phase === 'shot' ? pen.shotT : 0.45) / 0.3, 0, 1);
+    krot = pen.dir * 1.25 * p; ky = 380 - Math.sin(p * Math.PI * 0.5) * clamp(330 - pen.targetY, 15, 150) * 0.55;
+  }
+  shadow(pen.kx, 30);
+  ctx.save();
+  if (pen.phase === 'aim') drawFootballer(pen.kx, 380, Object.assign({}, KEEPER, { pose: 'keeper', phase: time * 5, s: 1.6, gloves: true }));
+  else drawFootballer(pen.kx, ky, Object.assign({}, KEEPER, { pose: 'dive', rot: krot, s: 1.6, gloves: true }));
+  ctx.restore();
+  // speler en bal
+  let ballX = 480, ballY = 492, ballR = 13;
+  if (pen.phase === 'shot') {
+    const f = clamp(pen.shotT / 0.45, 0, 1);
+    ballX = 480 + (pen.target - 480) * f; ballY = 492 + (pen.targetY - 492) * f - Math.sin(f * Math.PI) * 40; ballR = 13 - 5 * f;
+  } else if (pen.phase === 'result') {
+    if (pen.result === 'goal') { ballX = pen.target; ballY = Math.min(370, pen.targetY + 13 + Math.min(pen.rt, 0.3) * 30); ballR = 8; }
+    else { const f = Math.min(pen.rt, 1); ballX = pen.target + pen.dir * -260 * f; ballY = pen.targetY + f * 180 - Math.sin(f * Math.PI) * 90; ballR = 8 + f * 4; }
+  }
+  drawFootballer(420, 505, Object.assign({}, player, { pose: pen.phase === 'aim' ? 'idle' : 'kick', phase: time * 2, s: 1.5 }));
+  drawBall(ballX, ballY, ballR, pen.phase === 'aim' ? 0 : time * 12);
+  if (pen.phase === 'aim') {
+    const ax = pen.aimX, ay = pen.aimY, pulse = 1 + Math.sin(time * 10) * 0.1;
+    ctx.save(); ctx.setLineDash([6, 8]); ctx.strokeStyle = 'rgba(255,182,39,0.6)'; ctx.lineWidth = 2;
+    line(480, 480, ax, ay); ctx.restore();
+    ctx.strokeStyle = '#ffb627'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(ax, ay, 20 * pulse, 0, Math.PI * 2); ctx.stroke();
+    line(ax - 30, ay, ax - 12, ay); line(ax + 12, ay, ax + 30, ay); line(ax, ay - 30, ax, ay - 12); line(ax, ay + 12, ax, ay + 30);
+    panel(W / 2 - 270, 62, 540, 64, 0.8);
+    ctx.fillStyle = '#ffffff'; ctx.font = `600 22px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(coarse ? 'Penalty! Tik in het doel om hoog of laag te schieten' : 'Penalty! Mik met ↑ en ↓, schiet met spatie', W / 2, 84);
+    ctx.fillStyle = '#c9d6e4'; ctx.font = `500 18px ${FB}`;
+    ctx.fillText('Hoog in de hoek is het lastigst te pakken', W / 2, 108);
+  }
+  drawParts();
+  drawWeather(L);
+  if (pen.phase === 'result') {
+    const goal = pen.result === 'goal';
+    bigTitle(goal ? 'Goal!' : 'Gestopt!', 110, 70, goal ? '#ffb627' : '#ffffff');
+    ctx.fillStyle = '#ffffff'; ctx.font = `600 24px ${FB}`; ctx.textAlign = 'center';
+    ctx.fillText(goal ? `+${lastPenalty.bonus} bonuspunten` : 'De keeper had hem. Geen bonus dit keer.', W / 2, 160);
+  }
+  drawTexts();
+}
+
+function drawLevelEnd() {
+  drawPenalty();
+  ctx.fillStyle = 'rgba(6,12,20,0.6)'; ctx.fillRect(0, 0, W, H);
+  panel(W / 2 - 260, 110, 520, 330, 0.92);
+  bigTitle(`Level ${lvlIdx + 1} gehaald!`, 160, 38, '#ffb627');
+  ctx.font = `600 24px ${FB}`; ctx.textBaseline = 'middle';
+  const rows = [
+    ['Ballen verzameld', String(lvlBalls)],
+    ['Penalty', lastPenalty && lastPenalty.goal ? `Raak, +${lastPenalty.bonus}` : 'Gestopt'],
+    ['Langste combo', String(bestCombo)],
+    ['Totaal', String(Math.floor(score))]
+  ];
+  rows.forEach(([k, v], i) => {
+    const y = 218 + i * 40;
+    ctx.textAlign = 'left'; ctx.fillStyle = '#c9d6e4'; ctx.fillText(k, W / 2 - 210, y);
+    ctx.textAlign = 'right'; ctx.fillStyle = i === 3 ? '#ffb627' : '#ffffff'; ctx.fillText(v, W / 2 + 210, y);
+  });
+  const last = lvlIdx >= LEVELS.length - 1;
+  button(W / 2 - 140, 374, 280, 50, last ? 'Bekijk de eindstand' : 'Volgend level', nextAfterLevel, true);
+}
+
+function drawEnd(won) {
+  if (won) { drawPenalty(); } else { drawScene(); }
+  ctx.fillStyle = 'rgba(6,12,20,0.7)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (won) {
+    ctx.save(); ctx.translate(W / 2, 112 + Math.sin(time * 2) * 4); ctx.scale(0.85, 0.85);
+    ctx.fillStyle = '#ffcc33';
+    ctx.beginPath(); ctx.moveTo(-42, -50); ctx.lineTo(42, -50); ctx.quadraticCurveTo(40, 10, 0, 22); ctx.quadraticCurveTo(-40, 10, -42, -50); ctx.fill();
+    ctx.lineWidth = 8; ctx.strokeStyle = '#ffcc33';
+    ctx.beginPath(); ctx.arc(-44, -28, 16, Math.PI * 0.5, Math.PI * 1.5); ctx.stroke();
+    ctx.beginPath(); ctx.arc(44, -28, 16, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+    ctx.fillRect(-7, 20, 14, 22); ctx.fillStyle = '#c99a1e'; ctx.fillRect(-30, 42, 60, 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-28, -44, 8, 40);
+    ctx.restore();
+    bigTitle('Kampioen!', 200, 54, '#ffb627');
+    ctx.fillStyle = '#ffffff'; ctx.font = `600 23px ${FB}`; ctx.textAlign = 'center';
+    ctx.fillText(`${player.name} haalde alle drie de levels met ${Math.floor(score)} punten.`, W / 2, 246);
+    if (Math.random() < 0.15) burst(Math.random() * W, -10, 2, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 60, grav: 250, life: 3, size: 5, rect: true });
+    drawParts();
+  } else {
+    ctx.save(); ctx.translate(W / 2, 100); ctx.rotate(0.12); ctx.scale(0.8, 0.8);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; rr(-38 + 6, -54 + 6, 76, 108, 8); ctx.fill();
+    ctx.fillStyle = '#e5262b'; rr(-38, -54, 76, 108, 8); ctx.fill();
+    ctx.restore();
+    bigTitle('Rode kaart!', 200, 52, '#ffffff');
+    ctx.fillStyle = '#e6eef8'; ctx.font = `600 23px ${FB}`; ctx.textAlign = 'center';
+    ctx.fillText(`Je haalde ${Math.floor(score)} punten en kwam tot level ${lvlIdx + 1}.`, W / 2, 246);
+  }
+  ctx.font = `600 20px ${FB}`; ctx.textAlign = 'center';
+  if (newRecord) { ctx.fillStyle = '#ffb627'; ctx.fillText('Nieuw record op dit apparaat!', W / 2, 280); }
+  else if (hi.score > 0) { ctx.fillStyle = '#c9d6e4'; ctx.fillText(`Record op dit apparaat: ${hi.score} punten door ${hi.name}`, W / 2, 280); }
+  const bw = 200, gx = W / 2 - (bw * 3 + 32) / 2;
+  button(gx, 310, bw, 50, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, true);
+  button(gx + bw + 16, 310, bw, 50, 'Andere speler', toMenu, false);
+  button(gx + (bw + 16) * 2, 310, bw, 50, 'Ranglijst', openRanking, false);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (entryState === 'open' || entryState === 'saving') {
+    ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
+    ctx.fillText('Zet je score op de ranglijst:', W / 2, 395);
+  } else if (entryState === 'error') {
+    ctx.fillStyle = '#ff8a7a'; ctx.font = `600 20px ${FB}`;
+    ctx.fillText('Opslaan lukte niet. Probeer het nog een keer.', W / 2, 395);
+  } else if (entryState === 'saved') {
+    const r = myRank();
+    ctx.fillStyle = '#5bd36b'; ctx.font = `600 24px ${FB}`;
+    ctx.fillText(r ? `Opgeslagen! ${savedEntry.name} staat op plek ${r} van de ranglijst.` : `Opgeslagen op de ranglijst, ${savedEntry.name}!`, W / 2, 420);
+  }
+  ctx.fillStyle = '#9fb3c6'; ctx.font = `500 17px ${FB}`; ctx.textBaseline = 'alphabetic';
+  if (!coarse) ctx.fillText('Spatie = opnieuw, C = andere speler, R = ranglijst', W / 2, 520);
+}
+
+function drawRanking() {
+  const L = LEVELS[2];
+  drawBackground(L, menuScroll);
+  drawWeather(L);
+  ctx.fillStyle = 'rgba(6,12,24,0.62)'; ctx.fillRect(0, 0, W, H);
+  bigTitle('Ranglijst', 50, 44, '#ffb627');
+  const px = 110, pw = 740, py = 84, ph = 362;
+  panel(px, py, pw, ph, 0.9);
+  const cols = { nr: px + 40, name: px + 84, speler: px + 330, gehaald: px + 520, punten: px + pw - 30 };
+  ctx.textBaseline = 'middle'; ctx.font = `600 17px ${FB}`; ctx.fillStyle = '#9fb8a8';
+  ctx.textAlign = 'center'; ctx.fillText('Plek', cols.nr, py + 24);
+  ctx.textAlign = 'left'; ctx.fillText('Naam', cols.name, py + 24); ctx.fillText('Met speler', cols.speler, py + 24); ctx.fillText('Gehaald', cols.gehaald, py + 24);
+  ctx.textAlign = 'right'; ctx.fillText('Punten', cols.punten, py + 24);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(px + 20, py + 40, pw - 40, 2);
+  const msg = rankStatus === 'loading' ? 'Ranglijst laden…'
+    : rankStatus === 'slow' && !ranking.length ? 'De ranglijst is nog niet bereikbaar. Probeer het straks opnieuw.'
+    : rankStatus === 'error' && !ranking.length ? 'De ranglijst kon niet geladen worden.'
+    : !ranking.length ? 'Nog geen scores. Speel een potje en zet je naam erop!' : null;
+  if (msg) {
+    ctx.textAlign = 'center'; ctx.fillStyle = '#c9d6e4'; ctx.font = `500 22px ${FB}`;
+    ctx.fillText(msg, W / 2, py + ph / 2);
+  } else {
+    const mine = myRank();
+    const rows = ranking.slice(0, 10).map((r, i) => [i + 1, r]);
+    if (mine > 10) rows.push([mine, ranking[mine - 1]]);
+    rows.forEach(([nr, r], i) => {
+      const y = py + 66 + i * 29 + (nr > 10 ? 6 : 0);
+      if (r.id === savedEntryId) { ctx.fillStyle = 'rgba(255,182,39,0.22)'; rr(px + 16, y - 13, pw - 32, 26, 6); ctx.fill(); }
+      const medal = ['#ffcc33', '#d9dee6', '#d08a4a'][nr - 1];
+      if (medal) { ctx.fillStyle = medal; ctx.beginPath(); ctx.arc(cols.nr, y, 11, 0, Math.PI * 2); ctx.fill(); }
+      ctx.textAlign = 'center'; ctx.font = `700 17px ${FB}`; ctx.fillStyle = medal ? '#1a1a1a' : '#c9d6e4';
+      ctx.fillText(String(nr), cols.nr, y + 1);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
+      ctx.fillText(String(r.name || 'Onbekend').slice(0, 16), cols.name, y + 1);
+      ctx.fillStyle = '#c9d6e4'; ctx.font = `500 18px ${FB}`;
+      ctx.fillText(String(r.speler || ''), cols.speler, y + 1);
+      ctx.fillText(r.kampioen ? 'Kampioen' : 'Level ' + (r.level || 1), cols.gehaald, y + 1);
+      ctx.textAlign = 'right'; ctx.fillStyle = nr === 1 ? '#ffb627' : '#ffffff'; ctx.font = `20px ${FD}`;
+      ctx.fillText(String(r.score || 0), cols.punten, y + 1);
+    });
+  }
+  ctx.textAlign = 'center'; ctx.font = `500 16px ${FB}`; ctx.fillStyle = '#9fb3c6';
+  if (rankStatus === 'local') ctx.fillText('Deze ranglijst wordt alleen in deze browser bewaard.', W / 2, py + ph - 14);
+  else if (dlMsg) { ctx.fillStyle = '#5bd36b'; ctx.fillText(dlMsg, W / 2, py + ph - 14); }
+  const canDl = dl && ranking.length;
+  const n = canDl ? 3 : 2, bw = 220, gx = W / 2 - (bw * n + 16 * (n - 1)) / 2;
+  button(gx, 462, bw, 50, 'Terug', closeRanking, false);
+  button(gx + bw + 16, 462, bw, 50, 'Opnieuw spelen', () => { player = rankFrom === 'menu' ? PLAYERS[sel] : player; SFX.whistle(); newGame(); }, true);
+  if (canDl) button(gx + (bw + 16) * 2, 462, bw, 50, 'Download als bestand', downloadRanking, false);
+}
+
+function drawPaused() {
+  ctx.fillStyle = 'rgba(6,12,20,0.55)'; ctx.fillRect(0, 0, W, H);
+  bigTitle('Pauze', 220, 64, '#ffffff');
+  button(W / 2 - 120, 290, 240, 52, 'Verder spelen', togglePause, true);
+}
+
+function render() {
+  buttons = [];
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random() - 0.5) * 14 * shake / 0.35, (Math.random() - 0.5) * 14 * shake / 0.35);
+  switch (state) {
+    case 'menu': drawMenu(); break;
+    case 'intro': drawScene(); drawIntro(); break;
+    case 'play': drawScene(); drawFlash(); break;
+    case 'red': drawScene(); drawFlash(); break;
+    case 'penalty': drawPenalty(); break;
+    case 'levelEnd': drawLevelEnd(); break;
+    case 'over': drawEnd(false); break;
+    case 'win': drawEnd(true); break;
+    case 'ranking': drawRanking(); break;
+    case 'paused':
+      if (pausedFrom === 'penalty') drawPenalty(); else drawScene();
+      drawPaused(); break;
+  }
+  ctx.restore();
+  syncEntryForm();
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, Math.max(0, (now - last) / 1000));
+  last = now;
+  update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+canvas.focus({ preventScroll: true });
+
+// alleen voor testen
+window.__doorbraak = { get state() { return state; }, startGame, jump, shoot, nextAfterLevel, setState: s => { state = s; }, saveScore, openRanking, get entryState() { return entryState; }, get ranking() { return ranking; }, P, get dist() { return dist; }, set dist(v) { dist = v; }, update, render };
+})();
+</script>
+</body>
+</html>
