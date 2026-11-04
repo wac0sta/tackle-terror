@@ -145,10 +145,12 @@
    ============================================================ */
 
 // De drie spelers. Verander gerust namen, rugnummers en kleuren.
+// Iedereen krijgt evenveel punten per bal (scoreMul), zodat elke speler even hoog kan scoren.
+// speedMul = hoe snel je rent, turboMul = hoe lang de turboschoenen werken.
 const PLAYERS = [
   { name: 'Rik Raket',   nr: 7,  kit: '#f2c230', shorts: '#1d2b6b', socks: '#f2c230', skin: '#f1c7a1', hair: '#6b4120',
-    kracht: 'Snel', desc: 'Rent 15% sneller en krijgt 1,5 keer zoveel punten voor elke bal.',
-    speedMul: 1.15, scoreMul: 1.5, doubleJump: false, shieldStart: false },
+    kracht: 'Snel', desc: 'Rent 10% sneller en zijn turboschoenen werken twee keer zo lang.',
+    speedMul: 1.1, scoreMul: 1.0, turboMul: 2, doubleJump: false, shieldStart: false },
   { name: 'Bram de Muur', nr: 4, kit: '#2f7de1', shorts: '#ffffff', socks: '#2f7de1', skin: '#c98e62', hair: '#1b1b1b',
     kracht: 'Sterk', desc: 'Begint elk level met een schild dat één tackle opvangt.',
     speedMul: 1.0, scoreMul: 1.0, doubleJump: false, shieldStart: true },
@@ -158,16 +160,47 @@ const PLAYERS = [
 ];
 
 // De levels: lengte van het veld, snelheid (pixels per seconde) en sfeer.
+// Voor de penalty: keeperFout = kans dat de keeper de verkeerde kant op duikt,
+// mikSnelheid = hoe snel het richtkruis heen en weer gaat, keeperSnelheid = hoe snel hij duikt.
 const LEVELS = [
   { name: 'Trainingsveld',        kind: 'training', length: 7000, speed: 340, gap: 1.25,
     sky: ['#6fc0f0', '#d2ecfb'], grassA: '#55ad4e', grassB: '#4b9e44', rain: false, night: false,
-    obstacles: ['slide', 'slide', 'cone', 'cone', 'high'] },
+    obstacles: ['slide', 'slide', 'cone', 'cone', 'high'],
+    bonus: 25, keeperFout: 0.3, mikSnelheid: 2.2, keeperSnelheid: 240 },
   { name: 'Dorpsclub in de regen', kind: 'club',     length: 8500, speed: 400, gap: 1.12,
     sky: ['#5f707d', '#a3b0b9'], grassA: '#3f8a3f', grassB: '#377c37', rain: true, night: false,
-    obstacles: ['slide', 'cone', 'high', 'high', 'mud', 'ref'] },
+    obstacles: ['slide', 'cone', 'high', 'high', 'mud', 'ref'],
+    tip: 'Pas op voor modder en een rondlopende scheidsrechter',
+    bonus: 50, keeperFout: 0.35, mikSnelheid: 2.5, keeperSnelheid: 255 },
   { name: 'Stadion bij avond',     kind: 'stadium',  length: 10000, speed: 460, gap: 1.02,
     sky: ['#081128', '#1f2d58'], grassA: '#2f9440', grassB: '#298636', rain: false, night: true,
-    obstacles: ['slide', 'slide', 'high', 'high', 'cone', 'mud', 'ref'] }
+    obstacles: ['slide', 'slide', 'high', 'high', 'cone', 'mud', 'ref'],
+    tip: 'Sneller dan ooit. Het hele stadion kijkt mee',
+    bonus: 75, keeperFout: 0.35, mikSnelheid: 2.8, keeperSnelheid: 270 }
+];
+
+// CHAMPIONS LEAGUE: komt vrij als je kampioen bent geworden (alle drie de levels gehaald).
+// Twee extra spelers. Houd de namen korter dan 18 tekens (voor de ranglijst).
+const CL_PLAYERS = [
+  { name: 'Kiki Bliksem', nr: 10, kit: '#1b2f6b', shorts: '#ffffff', socks: '#d0112b', skin: '#6b4428', hair: '#111111', accent: '#5b8cff',
+    kracht: 'Bliksem', desc: 'Supersnel en kan in de lucht nog een keer springen.',
+    speedMul: 1.05, scoreMul: 1.0, turboMul: 1.5, doubleJump: true, shieldStart: false },
+  { name: 'Harry Kanon', nr: 9, kit: '#e8eef5', shorts: '#1b2f6b', socks: '#e8eef5', skin: '#f1c7a1', hair: '#a8773f',
+    kracht: 'Kanon', desc: 'Begint met een schild en is een penaltykiller: de keeper gokt vaker fout.',
+    speedMul: 0.95, scoreMul: 1.0, doubleJump: false, shieldStart: true, penaltyKiller: true }
+];
+// De twee hele moeilijke Champions League-levels. tackleMul = hoeveel sneller de tackles komen.
+const CL_LEVELS = [
+  { name: 'Europese avond in de stromende regen', label: 'Halve finale', kind: 'stadium', length: 11000, speed: 520, gap: 0.96, tackleMul: 1.2,
+    sky: ['#0a1020', '#2a3448'], grassA: '#2c8a3c', grassB: '#267c34', rain: true, night: true,
+    obstacles: ['slide', 'slide', 'high', 'high', 'cone', 'mud', 'ref', 'slide', 'high'],
+    tip: 'Glad, donker en snel. Eén foutje en je krijgt al geel',
+    bonus: 100, keeperFout: 0.25, mikSnelheid: 3.1, keeperSnelheid: 285 },
+  { name: 'Het grootste stadion van Europa', label: 'Finale', kind: 'stadium', length: 12000, speed: 570, gap: 0.92, tackleMul: 1.3,
+    sky: ['#120a2e', '#33215e'], grassA: '#2f9440', grassB: '#298636', rain: false, night: true,
+    obstacles: ['slide', 'slide', 'high', 'high', 'high', 'cone', 'mud', 'ref', 'ref'],
+    tip: 'De allerbeste tegenstanders van Europa. Win de beker!',
+    bonus: 150, keeperFout: 0.2, mikSnelheid: 3.4, keeperSnelheid: 300 }
 ];
 
 const OPP    = { kit: '#7b35c4', shorts: '#f2f2f2', socks: '#7b35c4', skin: '#e0b48e', hair: '#3a2414', nr: 5 };
@@ -176,6 +209,13 @@ const KEEPER = { kit: '#27c46a', shorts: '#14301f', socks: '#27c46a', skin: '#d9
 const ADS = ['Frituur De Gouden Bal', 'Bakkerij Krentenbol', 'Fietsen Van Dijk', 'Snackbar De Corner', 'Sportschool Spierwit', 'Garage De Wissel'];
 // Doorlopend stadiongeluid (publiek en klapritme). Zet op true om het weer aan te zetten.
 const ACHTERGRONDGELUID = false;
+// Namen met deze woorden mogen niet op de ranglijst (ook niet als k4nk3r of k.a.n.k.e.r).
+// VERBODEN_DEEL: verboden als het érgens in de naam zit. VERBODEN_WOORD: alleen als los woord
+// (anders zou bijvoorbeeld "Janus" niet mogen vanwege "anus").
+const VERBODEN_DEEL = ['kanker', 'tering', 'tyfus', 'tiefus', 'klere', 'godver', 'godve', 'neuk', 'porn', 'fuck', 'fuk',
+  'shit', 'bitch', 'cunt', 'hoer', 'slet', 'nazi', 'hitler', 'niger', 'neger', 'verkracht', 'piemel', 'vagina', 'penis',
+  'dildo', 'milf', 'seks', 'fliker', 'mongol', 'debiel', 'lulig', 'tieten', 'nigga', 'pedo', 'naakt', 'kut', 'xxx'];
+const VERBODEN_WOORD = ['lul', 'pik', 'anus', 'homo', 'sex', 'teef', 'kont', 'tiet', 'gay', 'ass', 'dick', 'pis', 'poep'];
 const AD_COLORS =[['#e8372c', '#fff'], ['#ffd23f', '#1d1d1d'], ['#1f5fbf', '#fff'], ['#ffffff', '#c3122b'], ['#111111', '#7cf05a'], ['#f28c28', '#fff']];
 
 /* ============================================================ */
@@ -201,14 +241,30 @@ if (coarse) {
   document.getElementById('help').textContent = 'Tik rechts op het veld om te springen, houd links ingedrukt voor een sliding.';
 }
 
-/* ---------- Highscore ---------- */
-function loadHi() {
-  try { const v = localStorage.getItem('doorbraak-hi'); return v ? JSON.parse(v) : { score: 0, name: '' }; }
-  catch (e) { return { score: 0, name: '' }; }
+/* ---------- Champions League vrijgespeeld? ---------- */
+let clOpen = false;
+try { clOpen = localStorage.getItem('tackle-terror-cl') === '1'; } catch (e) {}
+function unlockCL() {
+  clOpen = true;
+  try { localStorage.setItem('tackle-terror-cl', '1'); } catch (e) {}
 }
-function saveHi(h) { try { localStorage.setItem('doorbraak-hi', JSON.stringify(h)); } catch (e) {} }
-let hi = loadHi();
-if (!hi || typeof hi.score !== 'number') hi = { score: 0, name: '' };
+
+/* ---------- Namen controleren ---------- */
+function nameForms(name) {
+  // kleine letters, cijfers die op letters lijken omzetten, accenten weg
+  const s = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[0@4]/g, c => ({ '0': 'o', '@': 'a', '4': 'a' })[c])
+    .replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/[5$]/g, 's').replace(/7/g, 't').replace(/8/g, 'b');
+  const words = s.split(/[\s_\-]+/).map(w => w.replace(/[^a-z]/g, '')).filter(Boolean);
+  const joined = s.replace(/[^a-z]/g, '');
+  const squash = t => t.replace(/(.)\1+/g, '$1'); // "fuuuck" wordt "fuck"
+  return { joined, squashed: squash(joined), words: words.concat(words.map(squash), [joined, squash(joined)]) };
+}
+function isBadName(name) {
+  const f = nameForms(String(name || ''));
+  if (VERBODEN_DEEL.some(w => f.joined.includes(w) || f.squashed.includes(w))) return true;
+  return f.words.some(w => VERBODEN_WOORD.includes(w));
+}
 
 /* ---------- Geluid ---------- */
 let actx = null, muted = false, noiseBuf = null;
@@ -271,7 +327,7 @@ function startAmbience() {
 function updateAmbience(dt) {
   if (!amb) return;
   let lv = 0.7;
-  if (state !== 'menu' && LEVELS[lvlIdx]) lv = { training: 0.35, club: 0.6, stadium: 1 }[LEVELS[lvlIdx].kind];
+  if (state !== 'menu' && state !== 'clMenu' && lvl()) lv = { training: 0.35, club: 0.6, stadium: 1 }[lvl().kind];
   if (state === 'paused') lv *= 0.3;
   const target = 0.06 * lv + (cheer > 0 ? 0.06 * lv + 0.03 : 0);
   if (Math.abs(target - amb.cur) > 0.003) { amb.cur = target; amb.g.gain.setTargetAtTime(target, actx.currentTime, 0.25); }
@@ -356,15 +412,19 @@ function overlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y 
 
 /* ---------- Spelstatus ---------- */
 let state = 'menu';
-let sel = 0, player = PLAYERS[0];
+let sel = 0, clSel = 0, player = PLAYERS[0];
+let mode = 'league'; // 'league' = gewone competitie, 'cl' = Champions League
 let lvlIdx = 0, score = 0, cards = 0, combo = 0, bestCombo = 0, lvlBalls = 0;
 let dist = 0, ents = [], texts = [], parts = [], rain = [];
 let introT = 0, redT = 0, shake = 0, cheer = 0, flash = null, menuScroll = 0;
-let time = 0, newRecord = false, lastPenalty = null, pausedFrom = null;
+let time = 0, lastPenalty = null, pausedFrom = null;
+const levels = () => mode === 'cl' ? CL_LEVELS : LEVELS;
+const lvl = () => levels()[lvlIdx];
+const lvlLabel = () => mode === 'cl' ? lvl().label : `Level ${lvlIdx + 1}`;
 let buttons = [], mouse = { x: -1, y: -1 };
 let touchDuck = false, duckPointer = null, jumpPointer = null;
 const keys = {};
-const P = { x: 180, y: GROUND, vy: 0, onGround: true, jumps: 0, ducking: false, inv: 0, shield: false, magnet: 0, turbo: 0, anim: 0 };
+const P = { x: 180, y: GROUND, vy: 0, onGround: true, jumps: 0, ducking: false, inv: 0, shield: false, magnet: 0, turbo: 0, turboMax: 5, anim: 0 };
 let pen = null;
 
 /* ---------- Level opbouwen ---------- */
@@ -382,7 +442,7 @@ function addObstacle(out, t, x) {
 function addBall(out, x, y, gold) { out.push({ type: gold ? 'gold' : 'ball', x, y, w: 22, h: 22 }); }
 
 function genLevel(li) {
-  const L = LEVELS[li];
+  const L = levels()[li];
   const sp = L.speed * player.speedMul;
   const out = [];
   let x = 1150, lastPower = 600;
@@ -390,6 +450,7 @@ function genLevel(li) {
   while (x < L.length - 800) {
     const t = L.obstacles[Math.floor(Math.random() * L.obstacles.length)];
     addObstacle(out, t, x);
+    if (L.tackleMul && (t === 'slide' || t === 'high')) out[out.length - 1].vx *= L.tackleMul;
     if (t === 'cone' || t === 'mud') {
       for (let i = -2; i <= 2; i++) addBall(out, x + 13 + i * 34, GROUND - 120 + Math.abs(i) * Math.abs(i) * 12);
     } else if (t === 'high') {
@@ -417,14 +478,14 @@ function genLevel(li) {
   return out;
 }
 
-function newGame() { entryState = 'none'; score = 0; lvlIdx = 0; bestCombo = 0; newRecord = false; startLevel(); }
+function newGame() { entryState = 'none'; score = 0; lvlIdx = 0; bestCombo = 0; startLevel(); }
 function startLevel() {
   dist = 0; cards = 0; combo = 0; lvlBalls = 0;
   ents = genLevel(lvlIdx);
   Object.assign(P, { y: GROUND, vy: 0, onGround: true, jumps: 0, ducking: false, inv: 0, magnet: 0, turbo: 0, shield: player.shieldStart });
   texts = []; parts = []; flash = null;
   rain = [];
-  if (LEVELS[lvlIdx].rain) for (let i = 0; i < 140; i++) rain.push({ x: Math.random() * W, y: Math.random() * H, s: 600 + Math.random() * 400 });
+  if (lvl().rain) for (let i = 0; i < 140; i++) rain.push({ x: Math.random() * W, y: Math.random() * H, s: 600 + Math.random() * 400 });
   state = 'intro'; introT = 0;
 }
 
@@ -462,12 +523,13 @@ function toggleMute() {
   if (ambMaster) ambMaster.gain.value = muted ? 0 : 1;
   document.getElementById('btnSound').textContent = muted ? 'Geluid aan' : 'Geluid uit';
 }
-function startGame() { player = PLAYERS[sel]; SFX.whistle(); newGame(); }
-function toMenu() { state = 'menu'; }
+function startGame() { mode = 'league'; player = PLAYERS[sel]; SFX.whistle(); newGame(); }
+function startCL() { mode = 'cl'; player = CL_PLAYERS[clSel]; SFX.whistle(); newGame(); }
+function openCLMenu() { if (!clOpen) return; state = 'clMenu'; SFX.select(); }
+function toMenu() { state = mode === 'cl' ? 'clMenu' : 'menu'; }
 function finishGame(won) {
   const s = Math.floor(score);
-  newRecord = s > hi.score;
-  if (newRecord) { hi = { score: s, name: player.name }; saveHi(hi); }
+  if (won && mode === 'league') unlockCL();
   state = won ? 'win' : 'over';
   entryState = s > 0 ? 'open' : 'none'; savedEntryId = null; savedEntry = null;
 }
@@ -476,12 +538,12 @@ function shoot() {
   // de eerste halve seconde telt niet, zodat een late sprong-tik niet meteen schiet
   if (!pen || pen.phase !== 'aim' || pen.t < 0.5) return;
   pen.phase = 'shot'; pen.target = pen.aimX; pen.targetY = pen.aimY; pen.shotT = 0; SFX.kick();
-  const wrong = Math.random() < [0.3, 0.35, 0.35][lvlIdx];
+  const wrong = Math.random() < lvl().keeperFout + (player.penaltyKiller ? 0.2 : 0);
   pen.kTarget = wrong ? 960 - pen.target : pen.target;
   pen.dir = Math.sign(pen.kTarget - pen.kx) || 1;
 }
 function nextAfterLevel() {
-  if (lvlIdx >= LEVELS.length - 1) { finishGame(true); burst(W / 2, 140, 120, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 380, grav: 300, life: 2.5, size: 6, rect: true }); }
+  if (lvlIdx >= levels().length - 1) { finishGame(true); burst(W / 2, 140, 120, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 380, grav: 300, life: 2.5, size: 6, rect: true }); }
   else { lvlIdx++; startLevel(); }
 }
 
@@ -500,9 +562,18 @@ window.addEventListener('keydown', e => {
     else if (c === 'Digit1' || c === 'Digit2' || c === 'Digit3') { sel = Number(c.slice(-1)) - 1; SFX.select(); }
     else if (c === 'Enter' || c === 'Space') startGame();
     else if (c === 'KeyR') openRanking();
+    else if (c === 'KeyL') openCLMenu();
+  } else if (state === 'clMenu') {
+    if (c === 'ArrowLeft' || c === 'KeyA' || c === 'ArrowRight' || c === 'KeyD') { clSel = 1 - clSel; SFX.select(); }
+    else if (c === 'Digit1' || c === 'Digit2') { clSel = Number(c.slice(-1)) - 1; SFX.select(); }
+    else if (c === 'Enter' || c === 'Space') startCL();
+    else if (c === 'Escape' || c === 'Backspace') { state = 'menu'; SFX.select(); }
   } else if (state === 'ranking') {
     if (c === 'Escape' || c === 'Backspace') closeRanking();
-    else if (c === 'Space' || c === 'Enter') { player = PLAYERS[sel]; SFX.whistle(); newGame(); }
+    else if (c === 'ArrowLeft') turnPage(-1);
+    else if (c === 'ArrowRight') turnPage(1);
+    else if (c === 'Tab') { e.preventDefault(); setRankTab(rankTab === 'league' ? 'cl' : 'league'); }
+    else if (c === 'Space' || c === 'Enter') replayFromRanking();
   } else if (state === 'play') {
     if (c === 'Space' || c === 'ArrowUp' || c === 'KeyW') jump();
     else if (c === 'KeyP' || c === 'Escape') togglePause();
@@ -519,6 +590,7 @@ window.addEventListener('keydown', e => {
     if (c === 'Space' || c === 'Enter') { SFX.whistle(); newGame(); }
     else if (c === 'KeyC' || c === 'Escape') toMenu();
     else if (c === 'KeyR') openRanking();
+    else if (c === 'KeyL' && clOpen) openCLMenu();
   }
 });
 window.addEventListener('keyup', e => {
@@ -590,6 +662,9 @@ const RANK_LIMIT = 50; // zoveel scores worden live bijgehouden (zuinig met leze
 
 let store = null, dl = null, ranking = [], rankStatus = 'loading', rankFrom = 'menu', unsubRanking = null;
 let entryState = 'none', savedEntryId = null, savedEntry = null, dlMsg = null;
+// bladeren: de live lijst bevat alleen de top, daarom halen we bij het openen ook alle scores op
+const PER_PAGE = 10;
+let rankTab = 'league', rankPage = 0, fullRows = null, fullAt = 0, fullLoading = false;
 const entryEl = document.getElementById('entry');
 const nameInput = document.getElementById('nameInput');
 const saveBtn = document.getElementById('saveBtn');
@@ -644,7 +719,7 @@ function artifactStore(d) {
     },
     async getAll() {
       const s = await col().orderBy('score', 'desc').limit(1000).get();
-      return s.docs.map(x => x.data());
+      return s.docs.map(x => Object.assign({ id: x.id }, x.data()));
     }
   };
 }
@@ -659,7 +734,7 @@ function useLocal() {
 }
 async function useArtifactOrLocal() {
   if (unsubRanking) { try { unsubRanking(); } catch (e) {} unsubRanking = null; }
-  store = null;
+  store = null; fullRows = null; fullAt = 0;
   if (inArtifact) {
     try { const d = await window.claude.use('db'); if (d) store = artifactStore(d); } catch (e) {}
   }
@@ -696,8 +771,11 @@ async function saveScore() {
   const name = nameInput.value.trim().slice(0, 16);
   if (!name) { nameInput.focus(); return; }
   if (entryState === 'saving' || entryState === 'saved') return;
+  if (isBadName(name)) { entryState = 'badname'; nameInput.select(); return; }
   try { localStorage.setItem('doorbraak-naam', name); } catch (e) {}
-  const entry = { name, score: Math.floor(score), speler: player.name, level: lvlIdx + 1, kampioen: state === 'win' };
+  // Champions League-scores herken je aan "CL " voor de spelernaam (zo passen ze in de Firebase-regels)
+  const speler = ((mode === 'cl' ? 'CL ' : '') + player.name).slice(0, 20);
+  const entry = { name, score: Math.floor(score), speler, level: lvlIdx + 1, kampioen: state === 'win' };
   entryState = 'saving';
   if (store) {
     try {
@@ -708,6 +786,7 @@ async function saveScore() {
         else throw e;
       }
       savedEntryId = id; savedEntry = entry; entryState = 'saved';
+      refreshFull(true);
     } catch (e) { entryState = 'error'; }
   } else {
     const list = loadLocalRanking();
@@ -720,22 +799,73 @@ async function saveScore() {
   canvas.focus({ preventScroll: true });
 }
 entryEl.addEventListener('submit', e => { e.preventDefault(); audio(); saveScore(); });
+nameInput.addEventListener('input', () => { if (entryState === 'badname') entryState = 'open'; });
 
 function syncEntryForm() {
-  const show = (state === 'over' || state === 'win') && (entryState === 'open' || entryState === 'saving' || entryState === 'error');
+  const show = (state === 'over' || state === 'win') && (entryState === 'open' || entryState === 'saving' || entryState === 'error' || entryState === 'badname');
   if (entryEl.hidden === show) entryEl.hidden = !show;
   const busy = entryState === 'saving';
   if (saveBtn.disabled !== busy) { saveBtn.disabled = busy; nameInput.disabled = busy; saveBtn.textContent = busy ? 'Opslaan…' : 'Zet op de ranglijst'; }
 }
+const isCLRow = r => String(r.speler || '').startsWith('CL ');
+const spelerName = r => String(r.speler || '').replace(/^CL /, '');
+function gehaaldLabel(r) {
+  if (isCLRow(r)) {
+    if (r.kampioen) return 'CL-winnaar';
+    const L = CL_LEVELS[(r.level || 1) - 1];
+    return L ? L.label : 'Champions League';
+  }
+  return r.kampioen ? 'Kampioen' : 'Level ' + (r.level || 1);
+}
+// Alle bekende scores (live top + volledige lijst), zonder dubbele en zonder verboden namen
+let rowsCache = { r: null, f: null, all: [] };
+function allRows() {
+  if (rowsCache.r !== ranking || rowsCache.f !== fullRows) {
+    const byId = new Map();
+    for (const r of (fullRows || [])) byId.set(r.id, r);
+    for (const r of ranking) byId.set(r.id, r);
+    const all = [...byId.values()].filter(r => !isBadName(r.name)).sort((a, b) => (b.score || 0) - (a.score || 0));
+    rowsCache = { r: ranking, f: fullRows, all, league: all.filter(r => !isCLRow(r)), cl: all.filter(isCLRow) };
+  }
+  return rowsCache;
+}
+const tabRows = tab => allRows()[tab];
+function refreshFull(force) {
+  if (!store || fullLoading || (!force && Date.now() - fullAt < 60000)) return;
+  fullLoading = true;
+  store.getAll().then(rows => { fullRows = rows; fullAt = Date.now(); })
+    .catch(() => {}).then(() => { fullLoading = false; });
+}
+function pageCount() { return Math.max(1, Math.ceil(tabRows(rankTab).length / PER_PAGE)); }
+function turnPage(d) {
+  const n = clamp(rankPage + d, 0, pageCount() - 1);
+  if (n !== rankPage) { rankPage = n; SFX.select(); }
+}
+function setRankTab(t) {
+  if (rankTab === t) return;
+  rankTab = t; SFX.select();
+  const m = myRank(t);
+  rankPage = m ? Math.floor((m - 1) / PER_PAGE) : 0;
+}
 function openRanking() {
-  rankFrom = (state === 'over' || state === 'win') ? state : 'menu';
+  rankFrom = (state === 'over' || state === 'win') ? state : state === 'clMenu' ? 'clMenu' : 'menu';
+  rankTab = rankFrom === 'menu' ? 'league' : mode;
+  const m = myRank(rankTab);
+  rankPage = m ? Math.floor((m - 1) / PER_PAGE) : 0;
   state = 'ranking'; dlMsg = null; SFX.select();
+  refreshFull(false);
 }
 function closeRanking() { state = rankFrom; SFX.select(); }
-function myRank() {
-  if (!savedEntryId) return 0;
-  const i = ranking.findIndex(r => r.id === savedEntryId);
-  return i + 1;
+function replayFromRanking() {
+  if (rankFrom === 'menu') { mode = 'league'; player = PLAYERS[sel]; }
+  else if (rankFrom === 'clMenu') { mode = 'cl'; player = CL_PLAYERS[clSel]; }
+  SFX.whistle(); newGame();
+}
+// plek van de net opgeslagen score in de lijst van die spelmodus
+function myRank(tab) {
+  if (!savedEntryId || !savedEntry) return 0;
+  const t = tab || (isCLRow(savedEntry) ? 'cl' : 'league');
+  return tabRows(t).findIndex(r => r.id === savedEntryId) + 1;
 }
 function saveFile(filename, data) {
   if (dl) return dl.save({ filename, data });
@@ -748,15 +878,16 @@ function saveFile(filename, data) {
   return Promise.resolve();
 }
 async function downloadRanking() {
-  let rows = ranking;
-  if (store) { try { rows = await store.getAll(); } catch (e) {} }
+  if (store) { try { fullRows = await store.getAll(); fullAt = Date.now(); } catch (e) {} }
   const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const lines = ['Plek;Naam;Punten;Speler;Gehaald;Datum'];
-  rows.forEach((r, i) => {
-    const d = r.datum ? new Date(r.datum) : null;
-    const datum = d && !isNaN(d) ? d.toLocaleDateString('nl-NL') + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '';
-    lines.push([i + 1, esc(r.name), r.score, esc(r.speler), esc(r.kampioen ? 'Kampioen' : 'Level ' + r.level), esc(datum)].join(';'));
-  });
+  const lines = ['Spelmodus;Plek;Naam;Punten;Speler;Gehaald;Datum'];
+  for (const [tab, label] of [['league', 'Competitie'], ['cl', 'Champions League']]) {
+    tabRows(tab).forEach((r, i) => {
+      const d = r.datum ? new Date(r.datum) : null;
+      const datum = d && !isNaN(d) ? d.toLocaleDateString('nl-NL') + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '';
+      lines.push([esc(label), i + 1, esc(r.name), r.score, esc(spelerName(r)), esc(gehaaldLabel(r)), esc(datum)].join(';'));
+    });
+  }
   try {
     await saveFile('tackle-terror-ranglijst.csv', '﻿' + lines.join('\r\n'));
     dlMsg = 'Ranglijst gedownload';
@@ -781,7 +912,7 @@ function update(dt) {
     if (flash) { flash.t += dt; if (flash.t > 1.1) flash = null; }
   }
   switch (state) {
-    case 'menu': case 'ranking': menuScroll += 70 * dt; break;
+    case 'menu': case 'clMenu': case 'ranking': menuScroll += 70 * dt; break;
     case 'intro':
       introT += dt; P.anim += dt * 3;
       if (introT > 2.4) { state = 'play'; SFX.whistle(); }
@@ -799,7 +930,7 @@ function update(dt) {
 }
 
 function updatePlay(dt) {
-  const L = LEVELS[lvlIdx];
+  const L = lvl();
   const sp = L.speed * player.speedMul * (P.turbo > 0 ? 1.35 : 1);
   dist += sp * dt;
   for (const p of parts) if (p.world) p.x -= sp * dt;
@@ -870,7 +1001,7 @@ function collide(e, r) {
   if (e.type === 'power') {
     e.dead = true; SFX.power();
     burst(cx, cy, 20, ['#7ae7ff', '#ffffff', '#ffe066'], { speed: 200, grav: 0, life: 0.5, size: 3.5 });
-    if (e.kind === 'boots') { P.turbo = 5; addText(cx, cy - 20, 'Turboschoenen!', '#ffe066', 28); }
+    if (e.kind === 'boots') { P.turbo = P.turboMax = 5 * (player.turboMul || 1); addText(cx, cy - 20, 'Turboschoenen!', '#ffe066', 28); }
     else if (e.kind === 'shield') { P.shield = true; addText(cx, cy - 20, 'Aanvoerdersband: schild!', '#7ae7ff', 26); }
     else { P.magnet = 8; addText(cx, cy - 20, 'Ballenmagneet!', '#ff7a7a', 28); }
     return;
@@ -916,23 +1047,22 @@ function startPenalty() {
 }
 function updatePenalty(dt) {
   pen.t += dt;
-  const li = lvlIdx;
   if (pen.phase === 'aim') {
-    pen.aimX = 480 + Math.sin(pen.t * [2.2, 2.5, 2.8][li]) * 190;
+    pen.aimX = 480 + Math.sin(pen.t * lvl().mikSnelheid) * 190;
     pen.kx = 480 + Math.sin(pen.t * 1.6 + 0.7) * 70;
     if (keys.ArrowUp || keys.KeyW) pen.aimY -= 230 * dt;
     if (keys.ArrowDown || keys.KeyS) pen.aimY += 230 * dt;
     pen.aimY = clamp(pen.aimY, AIM_TOP, AIM_LOW);
   } else if (pen.phase === 'shot') {
     pen.shotT += dt;
-    const ds = [240, 255, 270][li] * dt, d = pen.kTarget - pen.kx;
+    const ds = lvl().keeperSnelheid * dt, d = pen.kTarget - pen.kx;
     pen.kx += Math.sign(d) * Math.min(Math.abs(d), ds);
     if (pen.shotT >= 0.45) {
       // hoog in de hoek is lastiger te pakken voor de keeper
       const topness = clamp((265 - pen.targetY) / (265 - AIM_TOP), 0, 1);
       const saved = Math.abs(pen.kx - pen.target) < 48 - 16 * topness;
       pen.result = saved ? 'saved' : 'goal'; pen.phase = 'result'; pen.rt = 0;
-      const bonus = 25 * (li + 1);
+      const bonus = lvl().bonus;
       if (!saved) {
         score += bonus; cheer = 2.5; SFX.cheer();
         burst(pen.target, pen.targetY, 70, ['#ffb627', '#ffffff', player.kit, '#27c46a'], { speed: 320, grav: 350, life: 1.6, size: 5, rect: true });
@@ -1344,14 +1474,14 @@ function drawCard(x, y, w, h, color, filled) {
   ctx.restore();
 }
 function drawHUD() {
-  const L = LEVELS[lvlIdx];
+  const L = lvl();
   panel(14, 12, 200, 62);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#9fb8a8'; ctx.font = `600 16px ${FB}`; ctx.fillText('Punten', 28, 34);
   ctx.fillStyle = '#ffb627'; ctx.font = `30px ${FD}`; ctx.fillText(String(Math.floor(score)).padStart(4, '0'), 28, 66);
 
   panel(226, 12, 470, 62);
-  ctx.fillStyle = '#9fb8a8'; ctx.font = `600 16px ${FB}`; ctx.fillText(`Level ${lvlIdx + 1}: ${L.name}`, 240, 34);
+  ctx.fillStyle = '#9fb8a8'; ctx.font = `600 16px ${FB}`; ctx.fillText(`${lvlLabel()}: ${L.name}`, 240, 34);
   const px = 240, pw = 440, py = 54;
   ctx.fillStyle = 'rgba(255,255,255,0.15)'; rr(px, py - 3, pw, 6, 3); ctx.fill();
   const prog = clamp(dist / (L.length - P.x - 30), 0, 1);
@@ -1370,7 +1500,7 @@ function drawHUD() {
 
   let bx = 14;
   const bars = [];
-  if (P.turbo > 0) bars.push(['boots', P.turbo / 5, 'Turbo']);
+  if (P.turbo > 0) bars.push(['boots', P.turbo / P.turboMax, 'Turbo']);
   if (P.magnet > 0) bars.push(['magnet', P.magnet / 8, 'Magneet']);
   for (const [k, f, label] of bars) {
     panel(bx, 82, 150, 34, 0.7);
@@ -1417,6 +1547,33 @@ function button(x, y, w, h, label, action, primary) {
   ctx.fillText(label, x + w / 2, y + h / 2 + 1);
 }
 
+// spelerskaarten op het menu en in de Champions League
+function drawCards(list, selIdx, pick, cy) {
+  const cw = 250, gap = 28, x0 = (W - list.length * cw - (list.length - 1) * gap) / 2, ch = 290;
+  list.forEach((p, i) => {
+    const x = x0 + i * (cw + gap), on = i === selIdx;
+    const y = cy - (on ? 8 : 0);
+    buttons.push({ x, y, w: cw, h: ch, action: () => pick(i) });
+    ctx.fillStyle = on ? 'rgba(14,22,30,0.92)' : 'rgba(14,22,30,0.72)';
+    rr(x, y, cw, ch, 14); ctx.fill();
+    ctx.lineWidth = on ? 4 : 2; ctx.strokeStyle = on ? (p.accent || p.kit) : 'rgba(255,255,255,0.15)'; ctx.stroke();
+    ctx.fillStyle = p.kit; ctx.globalAlpha = 0.18; rr(x + 10, y + 10, cw - 20, 120, 10); ctx.fill(); ctx.globalAlpha = 1;
+    drawFootballer(x + cw / 2 - 6, y + 128, Object.assign({}, p, { pose: on ? 'run' : 'idle', phase: on ? time * 12 : time * 2, s: 1.35 }));
+    if (on) drawBall(x + cw / 2 + 30, y + 118 - Math.abs(Math.sin(time * 6)) * 8, 11, time * 8);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#ffffff'; ctx.font = `20px ${FD}`; ctx.fillText(p.name, x + 18, y + 166);
+    ctx.font = `700 17px ${FB}`;
+    const bw = Math.max(86, ctx.measureText(p.kracht).width + 28);
+    ctx.fillStyle = p.kit; rr(x + 18, y + 178, bw, 26, 13); ctx.fill();
+    ctx.fillStyle = lum(p.kit) > 0.6 ? '#1a1a1a' : '#ffffff'; ctx.textAlign = 'center';
+    ctx.fillText(p.kracht, x + 18 + bw / 2, y + 197);
+    ctx.textAlign = 'left'; ctx.fillStyle = '#c9d6e4'; ctx.font = `500 18px ${FB}`;
+    wrapText(p.desc, x + 18, y + 230, cw - 36, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = `600 15px ${FB}`; ctx.textAlign = 'right';
+    ctx.fillText('#' + p.nr, x + cw - 16, y + 30);
+  });
+}
+
 function drawMenu() {
   const L = LEVELS[2];
   drawBackground(L, menuScroll);
@@ -1431,39 +1588,51 @@ function drawMenu() {
   ctx.fillStyle = '#e6eef8'; ctx.font = `600 21px ${FB}`; ctx.textAlign = 'center';
   ctx.fillText('Kies je speler, verzamel ballen en ontwijk elke tackle op weg naar het doel.', W / 2, 112);
 
-  const cw = 250, gap = 28, x0 = (W - 3 * cw - 2 * gap) / 2, cy = 138, ch = 290;
-  PLAYERS.forEach((p, i) => {
-    const x = x0 + i * (cw + gap), on = i === sel;
-    const y = cy - (on ? 8 : 0);
-    buttons.push({ x, y, w: cw, h: ch, action: () => { if (sel === i) startGame(); else { sel = i; SFX.select(); } } });
-    ctx.fillStyle = on ? 'rgba(14,22,30,0.92)' : 'rgba(14,22,30,0.72)';
-    rr(x, y, cw, ch, 14); ctx.fill();
-    ctx.lineWidth = on ? 4 : 2; ctx.strokeStyle = on ? p.kit : 'rgba(255,255,255,0.15)'; ctx.stroke();
-    ctx.fillStyle = p.kit; ctx.globalAlpha = 0.18; rr(x + 10, y + 10, cw - 20, 120, 10); ctx.fill(); ctx.globalAlpha = 1;
-    drawFootballer(x + cw / 2 - 6, y + 128, Object.assign({}, p, { pose: on ? 'run' : 'idle', phase: on ? time * 12 : time * 2, s: 1.35 }));
-    if (on) drawBall(x + cw / 2 + 30, y + 118 - Math.abs(Math.sin(time * 6)) * 8, 11, time * 8);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#ffffff'; ctx.font = `20px ${FD}`; ctx.fillText(p.name, x + 18, y + 166);
-    ctx.fillStyle = p.kit; rr(x + 18, y + 178, ctx.measureText(p.kracht).width * 0 + 86, 26, 13); ctx.fill();
-    ctx.fillStyle = lum(p.kit) > 0.6 ? '#1a1a1a' : '#ffffff'; ctx.font = `700 17px ${FB}`; ctx.textAlign = 'center';
-    ctx.fillText(p.kracht, x + 18 + 43, y + 197);
-    ctx.textAlign = 'left'; ctx.fillStyle = '#c9d6e4'; ctx.font = `500 18px ${FB}`;
-    wrapText(p.desc, x + 18, y + 230, cw - 36, 22);
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = `600 15px ${FB}`; ctx.textAlign = 'right';
-    ctx.fillText('#' + p.nr, x + cw - 16, y + 30);
-  });
+  drawCards(PLAYERS, sel, i => { if (sel === i) startGame(); else { sel = i; SFX.select(); } }, 138);
   button(W / 2 - 130, 448, 260, 50, `Start met ${PLAYERS[sel].name.split(' ')[0]}`, startGame, true);
   button(24, 448, 150, 50, 'Ranglijst', openRanking, false);
+  if (clOpen) {
+    button(W - 24 - 210, 448, 210, 50, 'Champions League', openCLMenu, false);
+  } else {
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#c9d6e4'; ctx.font = `600 16px ${FB}`;
+    ctx.fillText('Word kampioen en speel', W - 28, 462);
+    ctx.fillText('de Champions League!', W - 28, 484);
+  }
   ctx.fillStyle = '#c9d6e4'; ctx.font = `500 17px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText(coarse ? 'Tik op een speler om te kiezen' : 'Kies met de pijltjes of klik, start met spatie', W / 2, 522);
-  if (hi.score > 0) {
-    ctx.textAlign = 'right'; ctx.fillStyle = '#ffb627'; ctx.font = `600 17px ${FB}`;
-    ctx.fillText(`Record: ${hi.score} (${hi.name})`, W - 20, 522);
+}
+
+function drawStar(x, y, r, color) {
+  ctx.fillStyle = color; ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * 0.45 : r;
+    ctx.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad);
   }
+  ctx.closePath(); ctx.fill();
+}
+function drawCLMenu() {
+  const L = CL_LEVELS[1];
+  drawBackground(L, menuScroll);
+  drawWeather(L);
+  ctx.fillStyle = 'rgba(8,6,30,0.55)'; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 4; i++) {
+    const r = 8 + 2.5 * Math.sin(time * 3 + i), c = i % 2 ? '#ffffff' : '#9fc3ff';
+    drawStar(120 + i * 38, 58 + (i % 2) * 10 - 5, r, c);
+    drawStar(W - 120 - i * 38, 58 + (i % 2) * 10 - 5, r, c);
+  }
+  bigTitle('Champions League', 58, 46, '#dfe8ff');
+  ctx.fillStyle = '#e6eef8'; ctx.font = `600 21px ${FB}`; ctx.textAlign = 'center';
+  ctx.fillText('Je bent kampioen! Kies een topspeler voor twee loeizware Europese duels.', W / 2, 112);
+  drawCards(CL_PLAYERS, clSel, i => { if (clSel === i) startCL(); else { clSel = i; SFX.select(); } }, 138);
+  button(W / 2 - 130, 448, 260, 50, `Start met ${CL_PLAYERS[clSel].name.split(' ')[0]}`, startCL, true);
+  button(24, 448, 150, 50, 'Terug', () => { state = 'menu'; SFX.select(); }, false);
+  button(W - 24 - 150, 448, 150, 50, 'Ranglijst', openRanking, false);
+  ctx.fillStyle = '#c9d6e4'; ctx.font = `500 17px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(coarse ? 'Tik op een speler om te kiezen' : 'Kies met de pijltjes of klik, start met spatie', W / 2, 522);
 }
 
 function drawScene() {
-  const L = LEVELS[lvlIdx];
+  const L = lvl();
   drawBackground(L, dist);
   drawEndGoal(L);
   for (const e of ents) if (!e.dead && (e.type === 'mud')) drawEntity(e);
@@ -1484,17 +1653,17 @@ function drawScene() {
 }
 
 function drawIntro() {
-  const L = LEVELS[lvlIdx];
+  const L = lvl();
   const a = clamp(introT * 3, 0, 1) * clamp((2.4 - introT) * 3, 0, 1);
   ctx.globalAlpha = a;
   panel(W / 2 - 280, 150, 560, 210, 0.85);
-  bigTitle(`Level ${lvlIdx + 1}`, 198, 46, '#ffb627');
+  bigTitle(lvlLabel(), 198, 46, '#ffb627');
   ctx.fillStyle = '#ffffff'; ctx.font = `600 28px ${FB}`; ctx.textAlign = 'center';
   ctx.fillText(L.name, W / 2, 246);
   ctx.fillStyle = '#c9d6e4'; ctx.font = `500 20px ${FB}`;
-  const tip = lvlIdx === 0
+  const tip = mode === 'league' && lvlIdx === 0
     ? (coarse ? 'Tik rechts om te springen, houd links ingedrukt voor een sliding' : 'Spatie of pijltje omhoog: springen. Pijltje omlaag: sliding')
-    : lvlIdx === 1 ? 'Pas op voor modder en een rondlopende scheidsrechter' : 'Sneller dan ooit. Het hele stadion kijkt mee';
+    : L.tip || '';
   ctx.fillText(tip, W / 2, 288);
   ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
   ctx.fillText(introT < 1.6 ? 'Klaar voor de aftrap…' : 'Aftrap!', W / 2, 330);
@@ -1517,7 +1686,7 @@ function drawFlash() {
 }
 
 function drawPenalty() {
-  const L = LEVELS[lvlIdx];
+  const L = lvl();
   drawSky(L, dist);
   ctx.fillStyle = L.kind === 'stadium' ? '#141b33' : L.kind === 'club' ? '#5c6670' : '#76b06a';
   ctx.fillRect(0, 120, W, 210);
@@ -1592,7 +1761,7 @@ function drawLevelEnd() {
   drawPenalty();
   ctx.fillStyle = 'rgba(6,12,20,0.6)'; ctx.fillRect(0, 0, W, H);
   panel(W / 2 - 260, 110, 520, 330, 0.92);
-  bigTitle(`Level ${lvlIdx + 1} gehaald!`, 160, 38, '#ffb627');
+  bigTitle(`${lvlLabel()} gehaald!`, 160, 38, '#ffb627');
   ctx.font = `600 24px ${FB}`; ctx.textBaseline = 'middle';
   const rows = [
     ['Ballen verzameld', String(lvlBalls)],
@@ -1605,27 +1774,34 @@ function drawLevelEnd() {
     ctx.textAlign = 'left'; ctx.fillStyle = '#c9d6e4'; ctx.fillText(k, W / 2 - 210, y);
     ctx.textAlign = 'right'; ctx.fillStyle = i === 3 ? '#ffb627' : '#ffffff'; ctx.fillText(v, W / 2 + 210, y);
   });
-  const last = lvlIdx >= LEVELS.length - 1;
+  const last = lvlIdx >= levels().length - 1;
   button(W / 2 - 140, 374, 280, 50, last ? 'Bekijk de eindstand' : 'Volgend level', nextAfterLevel, true);
 }
 
 function drawEnd(won) {
+  const cl = mode === 'cl';
   if (won) { drawPenalty(); } else { drawScene(); }
   ctx.fillStyle = 'rgba(6,12,20,0.7)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (won) {
+    // beker: goud voor de competitie, zilver met grote oren voor de Champions League
+    const cup = cl ? '#dfe6ee' : '#ffcc33', cupDark = cl ? '#9aa6b4' : '#c99a1e';
     ctx.save(); ctx.translate(W / 2, 112 + Math.sin(time * 2) * 4); ctx.scale(0.85, 0.85);
-    ctx.fillStyle = '#ffcc33';
+    ctx.fillStyle = cup;
     ctx.beginPath(); ctx.moveTo(-42, -50); ctx.lineTo(42, -50); ctx.quadraticCurveTo(40, 10, 0, 22); ctx.quadraticCurveTo(-40, 10, -42, -50); ctx.fill();
-    ctx.lineWidth = 8; ctx.strokeStyle = '#ffcc33';
-    ctx.beginPath(); ctx.arc(-44, -28, 16, Math.PI * 0.5, Math.PI * 1.5); ctx.stroke();
-    ctx.beginPath(); ctx.arc(44, -28, 16, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
-    ctx.fillRect(-7, 20, 14, 22); ctx.fillStyle = '#c99a1e'; ctx.fillRect(-30, 42, 60, 14);
+    ctx.lineWidth = 8; ctx.strokeStyle = cup;
+    const ear = cl ? 26 : 16;
+    ctx.beginPath(); ctx.arc(-40 - ear * 0.3, -24, ear, Math.PI * 0.5, Math.PI * 1.5); ctx.stroke();
+    ctx.beginPath(); ctx.arc(40 + ear * 0.3, -24, ear, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+    ctx.fillRect(-7, 20, 14, 22); ctx.fillStyle = cupDark; ctx.fillRect(-30, 42, 60, 14);
     ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-28, -44, 8, 40);
     ctx.restore();
-    bigTitle('Kampioen!', 200, 54, '#ffb627');
+    bigTitle(cl ? 'Europees kampioen!' : 'Kampioen!', 200, cl ? 46 : 54, cl ? '#dfe8ff' : '#ffb627');
     ctx.fillStyle = '#ffffff'; ctx.font = `600 23px ${FB}`; ctx.textAlign = 'center';
-    ctx.fillText(`${player.name} haalde alle drie de levels met ${Math.floor(score)} punten.`, W / 2, 246);
+    ctx.fillText(cl ? `${player.name} won de Champions League met ${Math.floor(score)} punten.`
+      : `${player.name} haalde alle drie de levels met ${Math.floor(score)} punten.`, W / 2, 246);
+    ctx.font = `600 20px ${FB}`; ctx.fillStyle = '#ffb627';
+    if (!cl) ctx.fillText('De Champions League is vrijgespeeld!', W / 2, 280);
     if (Math.random() < 0.15) burst(Math.random() * W, -10, 2, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 60, grav: 250, life: 3, size: 5, rect: true });
     drawParts();
   } else {
@@ -1635,38 +1811,46 @@ function drawEnd(won) {
     ctx.restore();
     bigTitle('Rode kaart!', 200, 52, '#ffffff');
     ctx.fillStyle = '#e6eef8'; ctx.font = `600 23px ${FB}`; ctx.textAlign = 'center';
-    ctx.fillText(`Je haalde ${Math.floor(score)} punten en kwam tot level ${lvlIdx + 1}.`, W / 2, 246);
+    ctx.fillText(cl ? `Je haalde ${Math.floor(score)} punten en kwam tot de ${lvlLabel().toLowerCase()} van de Champions League.`
+      : `Je haalde ${Math.floor(score)} punten en kwam tot level ${lvlIdx + 1}.`, W / 2, 246);
   }
-  ctx.font = `600 20px ${FB}`; ctx.textAlign = 'center';
-  if (newRecord) { ctx.fillStyle = '#ffb627'; ctx.fillText('Nieuw record op dit apparaat!', W / 2, 280); }
-  else if (hi.score > 0) { ctx.fillStyle = '#c9d6e4'; ctx.fillText(`Record op dit apparaat: ${hi.score} punten door ${hi.name}`, W / 2, 280); }
-  const bw = 200, gx = W / 2 - (bw * 3 + 32) / 2;
-  button(gx, 310, bw, 50, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, true);
+  const showCL = won && !cl;
+  const n = showCL ? 4 : 3, bw = showCL ? 196 : 200, gx = W / 2 - (bw * n + 16 * (n - 1)) / 2;
+  button(gx, 310, bw, 50, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, !showCL);
   button(gx + bw + 16, 310, bw, 50, 'Andere speler', toMenu, false);
   button(gx + (bw + 16) * 2, 310, bw, 50, 'Ranglijst', openRanking, false);
+  if (showCL) button(gx + (bw + 16) * 3, 310, bw, 50, 'Champions League', openCLMenu, true);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (entryState === 'open' || entryState === 'saving') {
     ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
     ctx.fillText('Zet je score op de ranglijst:', W / 2, 395);
+  } else if (entryState === 'badname') {
+    ctx.fillStyle = '#ff8a7a'; ctx.font = `600 20px ${FB}`;
+    ctx.fillText('Die naam mag niet op de ranglijst. Kies een andere naam.', W / 2, 395);
   } else if (entryState === 'error') {
     ctx.fillStyle = '#ff8a7a'; ctx.font = `600 20px ${FB}`;
     ctx.fillText('Opslaan lukte niet. Probeer het nog een keer.', W / 2, 395);
   } else if (entryState === 'saved') {
     const r = myRank();
     ctx.fillStyle = '#5bd36b'; ctx.font = `600 24px ${FB}`;
-    ctx.fillText(r ? `Opgeslagen! ${savedEntry.name} staat op plek ${r} van de ranglijst.` : `Opgeslagen op de ranglijst, ${savedEntry.name}!`, W / 2, 420);
+    const lijst = cl ? 'de Champions League-ranglijst' : 'de ranglijst';
+    ctx.fillText(r ? `Opgeslagen! ${savedEntry.name} staat op plek ${r} van ${lijst}.` : `Opgeslagen op ${lijst}, ${savedEntry.name}!`, W / 2, 420);
   }
   ctx.fillStyle = '#9fb3c6'; ctx.font = `500 17px ${FB}`; ctx.textBaseline = 'alphabetic';
-  if (!coarse) ctx.fillText('Spatie = opnieuw, C = andere speler, R = ranglijst', W / 2, 520);
+  if (!coarse) ctx.fillText(`Spatie = opnieuw, C = andere speler, R = ranglijst${showCL ? ', L = Champions League' : ''}`, W / 2, 520);
 }
 
 function drawRanking() {
-  const L = LEVELS[2];
+  const L = rankTab === 'cl' ? CL_LEVELS[1] : LEVELS[2];
   drawBackground(L, menuScroll);
   drawWeather(L);
   ctx.fillStyle = 'rgba(6,12,24,0.62)'; ctx.fillRect(0, 0, W, H);
-  bigTitle('Ranglijst', 50, 44, '#ffb627');
-  const px = 110, pw = 740, py = 84, ph = 362;
+  bigTitle('Ranglijst', 40, 36, '#ffb627');
+  // tabbladen: gewone competitie en Champions League
+  [['league', 'Competitie'], ['cl', 'Champions League']].forEach(([t, label], i) => {
+    button(i ? 850 - 210 : 110, 18, 210, 44, label, () => setRankTab(t), rankTab === t);
+  });
+  const px = 110, pw = 740, py = 74, ph = 372;
   panel(px, py, pw, ph, 0.9);
   const cols = { nr: px + 40, name: px + 84, speler: px + 330, gehaald: px + 520, punten: px + pw - 30 };
   ctx.textBaseline = 'middle'; ctx.font = `600 17px ${FB}`; ctx.fillStyle = '#9fb8a8';
@@ -1674,19 +1858,21 @@ function drawRanking() {
   ctx.textAlign = 'left'; ctx.fillText('Naam', cols.name, py + 24); ctx.fillText('Met speler', cols.speler, py + 24); ctx.fillText('Gehaald', cols.gehaald, py + 24);
   ctx.textAlign = 'right'; ctx.fillText('Punten', cols.punten, py + 24);
   ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(px + 20, py + 40, pw - 40, 2);
+  const list = tabRows(rankTab);
+  const pages = pageCount();
+  if (rankPage > pages - 1) rankPage = pages - 1;
   const msg = rankStatus === 'loading' ? 'Ranglijst laden…'
-    : rankStatus === 'slow' && !ranking.length ? 'De ranglijst is nog niet bereikbaar. Probeer het straks opnieuw.'
-    : rankStatus === 'error' && !ranking.length ? 'De ranglijst kon niet geladen worden.'
-    : !ranking.length ? 'Nog geen scores. Speel een potje en zet je naam erop!' : null;
+    : rankStatus === 'slow' && !list.length ? 'De ranglijst is nog niet bereikbaar. Probeer het straks opnieuw.'
+    : rankStatus === 'error' && !list.length ? 'De ranglijst kon niet geladen worden.'
+    : !list.length ? (rankTab === 'cl' ? 'Nog geen Champions League-scores. Word kampioen en speel mee!' : 'Nog geen scores. Speel een potje en zet je naam erop!') : null;
   if (msg) {
     ctx.textAlign = 'center'; ctx.fillStyle = '#c9d6e4'; ctx.font = `500 22px ${FB}`;
     ctx.fillText(msg, W / 2, py + ph / 2);
   } else {
-    const mine = myRank();
-    const rows = ranking.slice(0, 10).map((r, i) => [i + 1, r]);
-    if (mine > 10) rows.push([mine, ranking[mine - 1]]);
-    rows.forEach(([nr, r], i) => {
-      const y = py + 66 + i * 29 + (nr > 10 ? 6 : 0);
+    const start = rankPage * PER_PAGE;
+    list.slice(start, start + PER_PAGE).forEach((r, i) => {
+      const nr = start + i + 1;
+      const y = py + 66 + i * 29;
       if (r.id === savedEntryId) { ctx.fillStyle = 'rgba(255,182,39,0.22)'; rr(px + 16, y - 13, pw - 32, 26, 6); ctx.fill(); }
       const medal = ['#ffcc33', '#d9dee6', '#d08a4a'][nr - 1];
       if (medal) { ctx.fillStyle = medal; ctx.beginPath(); ctx.arc(cols.nr, y, 11, 0, Math.PI * 2); ctx.fill(); }
@@ -1695,19 +1881,32 @@ function drawRanking() {
       ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
       ctx.fillText(String(r.name || 'Onbekend').slice(0, 16), cols.name, y + 1);
       ctx.fillStyle = '#c9d6e4'; ctx.font = `500 18px ${FB}`;
-      ctx.fillText(String(r.speler || ''), cols.speler, y + 1);
-      ctx.fillText(r.kampioen ? 'Kampioen' : 'Level ' + (r.level || 1), cols.gehaald, y + 1);
+      ctx.fillText(spelerName(r), cols.speler, y + 1);
+      ctx.fillText(gehaaldLabel(r), cols.gehaald, y + 1);
       ctx.textAlign = 'right'; ctx.fillStyle = nr === 1 ? '#ffb627' : '#ffffff'; ctx.font = `20px ${FD}`;
       ctx.fillText(String(r.score || 0), cols.punten, y + 1);
     });
   }
+  // bladeren: pijlen links en rechts naast de lijst
+  if (pages > 1) {
+    const arrow = (x, dir, ok) => {
+      const cx = x + 30, cy = py + ph / 2;
+      if (ok) button(x, cy - 45, 60, 90, '', () => turnPage(dir), false);
+      ctx.fillStyle = ok ? '#ffffff' : 'rgba(255,255,255,0.2)';
+      ctx.beginPath(); ctx.moveTo(cx + 10 * dir, cy); ctx.lineTo(cx - 8 * dir, cy - 14); ctx.lineTo(cx - 8 * dir, cy + 14); ctx.closePath(); ctx.fill();
+    };
+    arrow(36, -1, rankPage > 0);
+    arrow(W - 96, 1, rankPage < pages - 1);
+  }
   ctx.textAlign = 'center'; ctx.font = `500 16px ${FB}`; ctx.fillStyle = '#9fb3c6';
-  if (rankStatus === 'local') ctx.fillText('Deze ranglijst wordt alleen in deze browser bewaard.', W / 2, py + ph - 14);
-  else if (dlMsg) { ctx.fillStyle = '#5bd36b'; ctx.fillText(dlMsg, W / 2, py + ph - 14); }
-  const canDl = ranking.length > 0;
+  let foot = rankStatus === 'local' ? 'Deze ranglijst wordt alleen in deze browser bewaard.' : '';
+  if (pages > 1) foot = `Pagina ${rankPage + 1} van ${pages}` + (coarse ? '' : ' (bladeren met ← en →)') + (fullLoading ? ' · laden…' : '') + (foot ? ' · ' + foot : '');
+  if (dlMsg) { ctx.fillStyle = '#5bd36b'; foot = dlMsg; }
+  if (foot) ctx.fillText(foot, W / 2, py + ph - 14);
+  const canDl = list.length > 0;
   const n = canDl ? 3 : 2, bw = 220, gx = W / 2 - (bw * n + 16 * (n - 1)) / 2;
   button(gx, 462, bw, 50, 'Terug', closeRanking, false);
-  button(gx + bw + 16, 462, bw, 50, 'Opnieuw spelen', () => { player = rankFrom === 'menu' ? PLAYERS[sel] : player; SFX.whistle(); newGame(); }, true);
+  button(gx + bw + 16, 462, bw, 50, 'Opnieuw spelen', replayFromRanking, true);
   if (canDl) button(gx + (bw + 16) * 2, 462, bw, 50, 'Download als bestand', downloadRanking, false);
 }
 
@@ -1723,6 +1922,7 @@ function render() {
   if (shake > 0) ctx.translate((Math.random() - 0.5) * 14 * shake / 0.35, (Math.random() - 0.5) * 14 * shake / 0.35);
   switch (state) {
     case 'menu': drawMenu(); break;
+    case 'clMenu': drawCLMenu(); break;
     case 'intro': drawScene(); drawIntro(); break;
     case 'play': drawScene(); drawFlash(); break;
     case 'red': drawScene(); drawFlash(); break;
@@ -1751,7 +1951,7 @@ requestAnimationFrame(frame);
 canvas.focus({ preventScroll: true });
 
 // alleen voor testen
-window.__doorbraak = { get state() { return state; }, startGame, jump, shoot, nextAfterLevel, setState: s => { state = s; }, saveScore, openRanking, get entryState() { return entryState; }, get ranking() { return ranking; }, P, get dist() { return dist; }, set dist(v) { dist = v; }, update, render };
+window.__doorbraak = { get state() { return state; }, startGame, startCL, openCLMenu, isBadName, get mode() { return mode; }, get score() { return score; }, set score(v) { score = v; }, unlockCL, jump, shoot, nextAfterLevel, setState: s => { state = s; }, saveScore, openRanking, get entryState() { return entryState; }, get ranking() { return ranking; }, P, get dist() { return dist; }, set dist(v) { dist = v; }, update, render };
 })();
 </script>
 </body>

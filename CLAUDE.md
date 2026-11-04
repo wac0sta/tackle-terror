@@ -11,8 +11,9 @@ Een 2D voetbal-renspel (side-scroller), gemaakt door een vader en zoon (14). De 
 - Geen externe afbeeldingen of geluidsbestanden: alles wordt op een `<canvas>` getekend en geluid wordt live gemaakt met de Web Audio API. Houd dat zo.
 - Externe bronnen zijn alleen Google Fonts (Bungee en Barlow Condensed, met fallback-lettertypen) en de Firebase-SDK voor de ranglijst. Het spel moet ook zonder die twee speelbaar blijven.
 - Er is een vaste logische resolutie van 960 × 540, die geschaald wordt naar de schermgrootte.
-- De spelstatus `state` is een van: `menu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. Er is één `update(dt)` en één `render()` per frame.
-- Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`, `ACHTERGRONDGELUID`). Nieuwe instelbare waarden horen daar.
+- De spelstatus `state` is een van: `menu`, `clMenu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. Er is één `update(dt)` en één `render()` per frame.
+- `mode` is `league` (gewone competitie, `LEVELS`/`PLAYERS`) of `cl` (Champions League, `CL_LEVELS`/`CL_PLAYERS`). Gebruik `levels()`, `lvl()` en `lvlLabel()` in plaats van `LEVELS[lvlIdx]`. De Champions League komt vrij na het kampioenschap (sleutel `tackle-terror-cl`).
+- Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `CL_PLAYERS`, `CL_LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`, `ACHTERGRONDGELUID`, `VERBODEN_DEEL`, `VERBODEN_WOORD`). Nieuwe instelbare waarden horen daar.
 - Knoppen op het canvas worden elke frame opnieuw geregistreerd via `button()` / `buttons.push()`.
 
 ## Ranglijst en opslag
@@ -21,6 +22,9 @@ Een 2D voetbal-renspel (side-scroller), gemaakt door een vader en zoon (14). De 
   2. **Artifact-database** via `window.claude.use('db')` (als Firebase niet bereikbaar is, bijvoorbeeld binnen een artifact).
   3. **`localStorage`**.
 - De Firestore-regels (in de Firebase-console, niet in de repo) staan alleen `create` toe, met exact de velden `name` (1 tot 16 tekens), `score` (int, 0 tot 5000), `speler` (≤ 20 tekens), `level` (int, 1 tot 3), `kampioen` (bool) en `datum` (== request.time, dus `serverTimestamp()`). Lezen mag iedereen, `update` en `delete` mag niemand. **Verander je de velden van een score, pas dan ook de regels aan**, anders wordt opslaan geweigerd.
+- Champions League-scores passen binnen die regels: `speler` begint met `CL ` (dus CL-spelernamen ≤ 17 tekens) en `level` is 1 of 2 binnen de CL. Herkennen met `isCLRow()`.
+- De live lijst (`ranking`, `RANK_LIMIT`) is alleen de top; voor bladeren haalt `refreshFull()` alle scores op (`fullRows`). `allRows()` voegt ze samen, filtert verboden namen (`isBadName()`) en splitst per tabblad.
+- Er is geen lokaal record meer (`doorbraak-hi` wordt niet meer gebruikt, maar niet verwijderd).
 - Testen kan met de REST API: `GET https://firestore.googleapis.com/v1/projects/tackle-terror/databases/(default)/documents/scores?key=<apiKey>`. Schrijf geen testscores naar de echte ranglijst, want die zijn alleen via de console te verwijderen.
 - **Hernoem de opslagsleutels nooit** (`doorbraak-hi`, `doorbraak-naam`, `doorbraak-ranglijst`) en ook de artifact-collectie niet. Dat is de oude naam van het spel en zo blijven bestaande scores bewaard.
 - `window.__doorbraak` onderaan is een testhaak.
@@ -47,5 +51,6 @@ Speel het spel daarna in een browser als het kan, of vraag de gebruiker om het t
 - Er is geen knop voor volledig scherm op mobiel.
 - Met spatie op het eindscherm sla je het invullen van je naam over.
 - Ranglijst: toon per naam alleen de beste score en begrens de lokale lijst.
+- Het namenfilter werkt alleen in het spel; de Firestore-regels controleren geen woorden.
+- De moeilijkheid van de Champions League-levels is nog niet uitgebreid getest.
 - Snelheid: het publiek en de verlopen worden elke frame opnieuw getekend (vooraf tekenen als het op een tablet hapert).
-- Opruimen: `ctx.measureText(p.kracht).width * 0 + 86` in `drawMenu()`.

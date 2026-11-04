@@ -19,14 +19,17 @@ Open `index.html` in een browser. Er is geen installatie of server nodig.
 | Pauze | P of Esc | Knop onder het spel |
 | Geluid aan/uit | M | Knop onder het spel |
 | Ranglijst openen | R (menu en eindscherm) | Knop "Ranglijst" |
+| Ranglijst bladeren | ← en → | Pijlen naast de lijst |
+| Wisselen tussen competitie en Champions League in de ranglijst | Tab | Knoppen bovenaan |
+| Champions League openen (na het kampioenschap) | L | Knop "Champions League" |
 
 ## Spelregels
 
-**Spelers.** Er zijn drie spelers, elk met een eigen kracht:
+**Spelers.** Er zijn drie spelers, elk met een eigen kracht. Ze krijgen allemaal evenveel punten per bal, zodat je met elke speler even hoog kunt scoren:
 
 | Speler | Kracht | Effect |
 |---|---|---|
-| Rik Raket (#7) | Snel | Rent 15% sneller, krijgt 1,5× punten per bal |
+| Rik Raket (#7) | Snel | Rent 10% sneller, turboschoenen werken twee keer zo lang |
 | Bram de Muur (#4) | Sterk | Begint elk level met een schild dat één tackle opvangt |
 | Joey Veer (#11) | Springer | Kan in de lucht nog een keer springen |
 
@@ -46,17 +49,17 @@ De eerste botsing in een level geeft een gele kaart, de tweede een rode kaart en
 
 | Item | Effect |
 |---|---|
-| Bal | 1 punt (× bonus van de speler) |
+| Bal | 1 punt |
 | Gouden bal | 5 punten |
 | Combo van 10 ballen achter elkaar | +5 bonus en juichend publiek |
 | Tegenstander wegbeuken met turbo | +3 punten |
-| Penalty raak | +25 / +50 / +75 punten (level 1 / 2 / 3) |
+| Penalty raak | +25 / +50 / +75 punten (level 1 / 2 / 3), in de Champions League +100 / +150 |
 
 **Power-ups.**
 
 | Power-up | Duur | Effect |
 |---|---|---|
-| Turboschoenen | 5 sec | Sneller en onkwetsbaar, je beukt tegenstanders weg |
+| Turboschoenen | 5 sec (Rik 10, Kiki 7,5) | Sneller en onkwetsbaar, je beukt tegenstanders weg |
 | Aanvoerdersband | Tot de eerste tackle | Schild dat één tackle opvangt |
 | Ballenmagneet | 8 sec | Trekt ballen in de buurt naar je toe |
 
@@ -70,9 +73,25 @@ De eerste botsing in een level geeft een gele kaart, de tweede een rode kaart en
 
 Aan het eind van elk level volgt een penalty. Het richtkruis beweegt van links naar rechts; met ↑ en ↓ kies je de hoogte. Hoog in de hoek is het lastigst voor de keeper.
 
+**Champions League.** Ben je kampioen geworden (alle drie de levels gehaald), dan komt de Champions League vrij. Je ziet dan een knop op het eindscherm en in het menu. Daar speel je met een van twee topspelers twee hele moeilijke levels:
+
+| Speler | Kracht | Effect |
+|---|---|---|
+| Kiki Bliksem (#10) | Bliksem | Iets sneller, dubbele sprong, turbo werkt langer |
+| Harry Kanon (#9) | Kanon | Begint met een schild, iets trager, de keeper gokt bij zijn penalty's vaker fout |
+
+| Ronde | Naam | Lengte | Snelheid | Extra |
+|---|---|---|---|---|
+| Halve finale | Europese avond in de stromende regen | 11000 | 520 | Regen, donker, snellere tackles |
+| Finale | Het grootste stadion van Europa | 12000 | 570 | Nog snellere tackles, veel scheidsrechters |
+
+Wie de finale wint, wordt **Europees kampioen** en krijgt de zilveren beker. Het spel onthoudt in de browser dat je de Champions League hebt vrijgespeeld.
+
 ## Ranglijst en opslag
 
-Na elk potje kun je je naam invullen en je score op de ranglijst zetten. De ranglijst toont de top 10 met medailles voor de eerste drie.
+Na elk potje kun je je naam invullen en je score op de ranglijst zetten. De ranglijst heeft twee tabbladen: **Competitie** en **Champions League**. Je ziet 10 scores per pagina, met medailles voor de eerste drie, en met de pijlen blader je terug door alle scores.
+
+Namen met scheldwoorden of foute woorden (ook geschreven als `k4nk3r` of `k.a.n.k.e.r`) worden geweigerd. De lijst met verboden woorden staat in INSTELLINGEN (`VERBODEN_DEEL` en `VERBODEN_WOORD`). Oude scores met zo'n naam worden niet meer getoond.
 
 Waar de scores worden bewaard, hangt af van waar het spel draait:
 
@@ -84,21 +103,23 @@ Via "Download als bestand" kun je alle scores als CSV exporteren (te openen in E
 
 **Firebase beheren.** De scores staan in het Firebase-project `tackle-terror` (https://console.firebase.google.com), onder Firestore Database, collectie `scores`. Daar kun je ook valse of foute scores verwijderen. De beveiligingsregels zorgen dat het spel alleen nieuwe, netjes ingevulde scores mag toevoegen (naam van 1 tot 16 tekens, 0 tot 5000 punten, level 1 tot 3, datum van de server) en dat niemand via het spel scores kan wijzigen of wissen.
 
-Het persoonlijke record op het eindscherm wordt altijd in de browser bewaard.
+Champions League-scores herken je in Firebase aan `CL ` voor de spelernaam (bijvoorbeeld `CL Kiki Bliksem`), met `level` 1 (halve finale) of 2 (finale). Zo passen ze binnen de bestaande regels.
 
 ## Zelf aanpassen
 
 Bovenaan het `<script>`-blok in `index.html` staat een blok **INSTELLINGEN**. Daar kun je zonder veel programmeerkennis dingen veranderen:
 
-- `PLAYERS`: namen, rugnummers, shirt-, broek-, sok-, huid- en haarkleur, en de krachten (`speedMul`, `scoreMul`, `doubleJump`, `shieldStart`).
-- `LEVELS`: lengte van het veld, snelheid, tijd tussen obstakels (`gap`), kleuren van lucht en gras, regen, nacht, en welke obstakels voorkomen.
+- `PLAYERS`: namen, rugnummers, shirt-, broek-, sok-, huid- en haarkleur, en de krachten (`speedMul`, `scoreMul`, `turboMul`, `doubleJump`, `shieldStart`).
+- `LEVELS`: lengte van het veld, snelheid, tijd tussen obstakels (`gap`), kleuren van lucht en gras, regen, nacht, welke obstakels voorkomen, en de penalty (`bonus`, `keeperFout`, `mikSnelheid`, `keeperSnelheid`).
+- `CL_PLAYERS` en `CL_LEVELS`: de spelers en levels van de Champions League (met `tackleMul` voor snellere tackles en `penaltyKiller`).
+- `VERBODEN_DEEL` en `VERBODEN_WOORD`: namen die niet op de ranglijst mogen.
 - `OPP`, `REF`, `KEEPER`: de kleuren van tegenstanders, scheidsrechter en keeper.
 - `ADS`: de teksten op de reclameborden.
 
 Andere handige plekken in de code:
 
 - `JUMP_V`, `JUMP2_V`, `GRAV`: hoe hoog en hoe zwaar de speler springt.
-- `updatePenalty()`: snelheid van het richtkruis, duiksnelheid van de keeper en hoe groot zijn bereik is.
+- `updatePenalty()`: hoe groot het bereik van de keeper is.
 - `SFX` en `whistleBlast()`: alle geluidseffecten.
 - `startAmbience()` en `updateAmbience()`: het stadiongeluid.
 
@@ -106,18 +127,25 @@ Andere handige plekken in de code:
 
 | Onderdeel | Functies |
 |---|---|
-| Instellingen | `PLAYERS`, `LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS` |
+| Instellingen | `PLAYERS`, `LEVELS`, `CL_PLAYERS`, `CL_LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`, `VERBODEN_DEEL` |
 | Geluid | `audio()`, `tone()`, `noise()`, `whistleBlast()`, `startAmbience()`, `SFX` |
 | Level bouwen | `genLevel()`, `addObstacle()`, `addBall()` |
 | Spelverloop | `newGame()`, `startLevel()`, `update()`, `updatePlay()`, `collide()` |
 | Penalty | `startPenalty()`, `updatePenalty()`, `shoot()`, `drawPenalty()` |
-| Ranglijst | `saveScore()`, `subscribeRanking()`, `drawRanking()`, `downloadRanking()` |
-| Tekenen | `drawFootballer()`, `drawBall()`, `drawBackground()`, `drawHUD()`, `drawMenu()`, `drawEnd()` |
+| Ranglijst | `saveScore()`, `isBadName()`, `subscribeRanking()`, `allRows()`, `refreshFull()`, `drawRanking()`, `downloadRanking()` |
+| Tekenen | `drawFootballer()`, `drawBall()`, `drawBackground()`, `drawHUD()`, `drawMenu()`, `drawCLMenu()`, `drawCards()`, `drawEnd()` |
 | Invoer | `keydown`/`keyup`-listeners, `pointerdown`/`pointerup` op het canvas |
 
-Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt geschaald naar de schermgrootte. De spelstatus (`state`) is een van: `menu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`.
+Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt geschaald naar de schermgrootte. De spelstatus (`state`) is een van: `menu`, `clMenu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. De variabele `mode` is `league` (competitie) of `cl` (Champions League).
 
 ## Wijzigingslog
+
+### Versie 10: Champions League
+- **Eerlijkere spelers.** Rik Raket kreeg 1,5× punten per bal en won daardoor bijna altijd. Nu krijgt iedereen evenveel punten. Rik rent 10% sneller (was 15%) en zijn turboschoenen werken twee keer zo lang.
+- **Champions League.** Na het kampioenschap komt een nieuwe spelmodus vrij met twee topspelers (Kiki Bliksem en Harry Kanon) en twee hele moeilijke levels: de halve finale en de finale. Wie wint, is Europees kampioen.
+- **Ranglijst.** Aparte tabbladen voor de competitie en de Champions League, en bladeren door alle scores (10 per pagina). Na het opslaan opent de ranglijst op de pagina met jouw score.
+- **Namenfilter.** Scheldwoorden en foute woorden worden geweigerd als naam, en oude scores met zo'n naam worden verborgen.
+- Het lokale record ("Record op dit apparaat") is weg, want de online ranglijst houdt alles bij.
 
 ### Versie 9: makers
 - Onder de besturingsinstructies staat nu "Gemaakt door Sverre, Tim en Claude".
