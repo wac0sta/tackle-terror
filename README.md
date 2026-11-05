@@ -21,7 +21,7 @@ Open `index.html` in een browser. Er is geen installatie of server nodig.
 | Ranglijst openen | R (menu en eindscherm) | Knop "Ranglijst" |
 | Ranglijst bladeren | ← en → | Pijlen naast de lijst |
 | Wisselen tussen competitie en Champions League in de ranglijst | Tab | Knoppen bovenaan |
-| Champions League openen (na het kampioenschap) | L (op het kampioensscherm ook Spatie) | Knop "Speel Champions League" |
+| Champions League starten (alleen vlak na het kampioenschap) | Spatie of L op het kampioensscherm, L op de ranglijst | Knop "Speel Champions League" |
 | Opnieuw spelen op het kampioensscherm | O | Knop "Opnieuw spelen" |
 
 ## Spelregels
@@ -74,7 +74,7 @@ De eerste botsing in een level geeft een gele kaart, de tweede een rode kaart en
 
 Aan het eind van elk level volgt een penalty. Het richtkruis beweegt van links naar rechts; met ↑ en ↓ kies je de hoogte. Hoog in de hoek is het lastigst voor de keeper.
 
-**Champions League.** Ben je kampioen geworden (alle drie de levels gehaald), dan komt de Champions League vrij. Het kampioensscherm laat dat meteen zien: eerst zet je je score op de ranglijst, en dan start je met de grote knop "Speel Champions League". Ondertussen speelt er een plechtige hymne, die stopt zodra je het scherm verlaat. De Champions League staat ook in het menu. Daar speel je met een van twee topspelers twee hele moeilijke levels:
+**Champions League.** Ben je kampioen geworden (alle drie de levels gehaald), dan komt de Champions League vrij. Het kampioensscherm laat dat meteen zien: eerst zet je je score op de ranglijst, en dan start je met de grote knop "Speel Champions League". Ondertussen speelt er een plechtige hymne, die stopt zodra je het scherm verlaat. In de Champions League speel je met een van twee topspelers twee hele moeilijke levels:
 
 | Speler | Kracht | Effect |
 |---|---|---|
@@ -86,7 +86,11 @@ Aan het eind van elk level volgt een penalty. Het richtkruis beweegt van links n
 | Halve finale | Europese avond in de stromende regen | 11000 | 520 | Regen, donker, snellere tackles |
 | Finale | Het grootste stadion van Europa | 12000 | 570 | Nog snellere tackles, veel scheidsrechters |
 
-Wie de finale wint, wordt **Europees kampioen** en krijgt de zilveren beker. Het spel onthoudt in de browser dat je de Champions League hebt vrijgespeeld.
+Wie de finale wint, is **Champions League-winnaar** en krijgt de zilveren beker.
+
+Je mag de Champions League maar **één keer** spelen na een kampioenschap. Wil je nog een keer, dan moet je eerst weer alle drie de levels halen. Daarom staat er geen Champions League-knop in het startmenu: je komt er alleen via het kampioensscherm (of de ranglijst die je daar opent).
+
+Heb je je competitiescore al op de ranglijst gezet? Dan wordt je Champions League-score vanzelf onder dezelfde naam opgeslagen, en het eindscherm zegt dat ook. Anders vul je je naam in boven de knoppen.
 
 ## Ranglijst en opslag
 
@@ -100,7 +104,6 @@ Waar de scores worden bewaard, hangt af van waar het spel draait:
 - **Als Claude-artifact**: als Firebase daar niet bereikbaar is, gebruikt het spel de database van het artifact.
 - **Zonder internet**: in de `localStorage` van de browser. Dan staat er onder de ranglijst de melding dat de scores alleen in die browser bewaard worden.
 
-Via "Download als bestand" kun je alle scores als CSV exporteren (te openen in Excel).
 
 **Firebase beheren.** De scores staan in het Firebase-project `tackle-terror` (https://console.firebase.google.com), onder Firestore Database, collectie `scores`. Daar kun je ook valse of foute scores verwijderen. De beveiligingsregels zorgen dat het spel alleen nieuwe, netjes ingevulde scores mag toevoegen (naam van 1 tot 16 tekens, 0 tot 5000 punten, level 1 tot 3, datum van de server) en dat niemand via het spel scores kan wijzigen of wissen.
 
@@ -133,13 +136,21 @@ Andere handige plekken in de code:
 | Level bouwen | `genLevel()`, `addObstacle()`, `addBall()` |
 | Spelverloop | `newGame()`, `startLevel()`, `update()`, `updatePlay()`, `collide()` |
 | Penalty | `startPenalty()`, `updatePenalty()`, `shoot()`, `drawPenalty()` |
-| Ranglijst | `saveScore()`, `isBadName()`, `subscribeRanking()`, `allRows()`, `refreshFull()`, `drawRanking()`, `downloadRanking()` |
+| Ranglijst | `saveScore()`, `isBadName()`, `subscribeRanking()`, `allRows()`, `refreshFull()`, `drawRanking()` |
 | Tekenen | `drawFootballer()`, `drawBall()`, `drawBackground()`, `drawHUD()`, `drawMenu()`, `drawCLMenu()`, `drawCards()`, `drawEnd()` |
 | Invoer | `keydown`/`keyup`-listeners, `pointerdown`/`pointerup` op het canvas |
 
 Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt geschaald naar de schermgrootte. De spelstatus (`state`) is een van: `menu`, `clMenu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. De variabele `mode` is `league` (competitie) of `cl` (Champions League).
 
 ## Wijzigingslog
+
+### Versie 12: Champions League is één kans
+- **Eén keer Champions League.** Na het kampioenschap mag je de Champions League één keer spelen. Daarna moet je eerst weer kampioen worden. De knop in het startmenu is weg.
+- **Ranglijst.** De knop "Download als bestand" is weg. Open je de ranglijst vanaf het kampioensscherm, dan staat er een knop **Speel Champions League**.
+- **Champions League-winnaar.** Wie de finale wint, heet nu Champions League-winnaar (niet meer Europees kampioen).
+- **Automatisch opslaan.** Stond je competitiescore al op naam, dan komt je Champions League-score er vanzelf onder dezelfde naam bij. Het eindscherm meldt dat.
+- **Eerst je naam, dan de knoppen.** Op de eindschermen staat het invulvak voor de ranglijst nu boven de knoppen, en het vak schaalt mee met het scherm.
+- Na de Champions League start "Nieuwe competitie" (of Spatie) weer bij level 1.
 
 ### Versie 11: kampioensscherm
 - **Duidelijker kampioensscherm.** Na level 3 zie je van boven naar beneden: dat je kampioen bent, een blauwe band "Champions League vrijgespeeld!", het vak om je score op de ranglijst te zetten en een grote knop **Speel Champions League**. Daaronder staan kleinere knoppen voor opnieuw spelen, een andere speler en de ranglijst.

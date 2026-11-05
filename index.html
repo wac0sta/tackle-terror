@@ -67,15 +67,14 @@
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
-  .stage { position: relative; }
+  .stage { position: relative; container-type: inline-size; }
   .entry {
-    position: absolute; left: 50%; top: 80%;
+    position: absolute; left: 50%; top: 62%;
     transform: translate(-50%, -50%);
     display: flex; gap: 8px;
     width: min(90%, 470px);
   }
   .entry[hidden] { display: none; }
-  .entry.hoog { top: 61%; }
   .entry input {
     flex: 1; min-width: 0;
     font: 600 1.15rem "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
@@ -83,6 +82,7 @@
     border: 2px solid #ffb627; background: #0e1612; color: #ffffff;
   }
   .entry input::placeholder { color: #8fa597; }
+  .entry input, .entry button { font-size: max(13px, 2cqw); padding: 0.4em 0.7em; }
   .entry button { background: #ffb627; color: #241703; border-color: #ffb627; white-space: nowrap; }
   .entry button:disabled { opacity: 0.6; cursor: default; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -246,12 +246,12 @@ if (coarse) {
 }
 
 /* ---------- Champions League vrijgespeeld? ---------- */
+// Na het kampioenschap mag je de Champions League één keer spelen. Wil je nog een keer,
+// dan moet je eerst weer kampioen worden. (De oude sleutel 'tackle-terror-cl' wordt niet meer gebruikt.)
 let clOpen = false;
-try { clOpen = localStorage.getItem('tackle-terror-cl') === '1'; } catch (e) {}
-function unlockCL() {
-  clOpen = true;
-  try { localStorage.setItem('tackle-terror-cl', '1'); } catch (e) {}
-}
+let clName = null;    // naam waaronder de competitiescore is opgeslagen; de CL-score komt daar ook onder
+let autoSave = false; // true als de CL-score vanzelf onder die naam wordt opgeslagen
+function unlockCL() { clOpen = true; }
 
 /* ---------- Namen controleren ---------- */
 function nameForms(name) {
@@ -594,15 +594,24 @@ function toggleMute() {
   if (hymn) hymn.out.gain.value = muted ? 0 : HYMNE_VOLUME;
   document.getElementById('btnSound').textContent = muted ? 'Geluid aan' : 'Geluid uit';
 }
-function startGame() { mode = 'league'; player = PLAYERS[sel]; SFX.whistle(); newGame(); }
-function startCL() { mode = 'cl'; player = CL_PLAYERS[clSel]; SFX.whistle(); newGame(); }
-function openCLMenu() { if (!clOpen) return; state = 'clMenu'; SFX.select(); }
-function toMenu() { state = mode === 'cl' ? 'clMenu' : 'menu'; }
+function startGame() { mode = 'league'; player = PLAYERS[sel]; clOpen = false; SFX.whistle(); newGame(); }
+function startCL() {
+  if (!clOpen) return;
+  clName = mode === 'league' && entryState === 'saved' && savedEntry ? savedEntry.name : null;
+  clOpen = false; // het kaartje is gebruikt
+  mode = 'cl'; player = CL_PLAYERS[clSel]; SFX.whistle(); newGame();
+}
+// mag je nu naar de Champions League? Alleen vlak na het kampioenschap, en nog niet gespeeld
+const canPlayCL = () => clOpen && mode === 'league';
+function openCLMenu() { if (!canPlayCL()) return; state = 'clMenu'; SFX.select(); }
+function toMenu() { clOpen = false; state = 'menu'; }
 function finishGame(won) {
   const s = Math.floor(score);
   if (won && mode === 'league') unlockCL();
   state = won ? 'win' : 'over';
-  entryState = s > 0 ? 'open' : 'none'; savedEntryId = null; savedEntry = null;
+  entryState = s > 0 ? 'open' : 'none'; savedEntryId = null; savedEntry = null; autoSave = false;
+  // stond je competitiescore al op naam? Dan komt de Champions League-score vanzelf onder dezelfde naam
+  if (mode === 'cl' && clName && s > 0) { nameInput.value = clName; autoSave = true; saveScore(); }
 }
 
 function shoot() {
@@ -633,18 +642,18 @@ window.addEventListener('keydown', e => {
     else if (c === 'Digit1' || c === 'Digit2' || c === 'Digit3') { sel = Number(c.slice(-1)) - 1; SFX.select(); }
     else if (c === 'Enter' || c === 'Space') startGame();
     else if (c === 'KeyR') openRanking();
-    else if (c === 'KeyL') openCLMenu();
   } else if (state === 'clMenu') {
     if (c === 'ArrowLeft' || c === 'KeyA' || c === 'ArrowRight' || c === 'KeyD') { clSel = 1 - clSel; SFX.select(); }
     else if (c === 'Digit1' || c === 'Digit2') { clSel = Number(c.slice(-1)) - 1; SFX.select(); }
     else if (c === 'Enter' || c === 'Space') startCL();
-    else if (c === 'Escape' || c === 'Backspace') { state = 'menu'; SFX.select(); }
+    else if (c === 'Escape' || c === 'Backspace') { state = 'win'; SFX.select(); }
   } else if (state === 'ranking') {
     if (c === 'Escape' || c === 'Backspace') closeRanking();
     else if (c === 'ArrowLeft') turnPage(-1);
     else if (c === 'ArrowRight') turnPage(1);
     else if (c === 'Tab') { e.preventDefault(); setRankTab(rankTab === 'league' ? 'cl' : 'league'); }
     else if (c === 'Space' || c === 'Enter') replayFromRanking();
+    else if (c === 'KeyL' && canPlayCL()) openCLMenu();
   } else if (state === 'play') {
     if (c === 'Space' || c === 'ArrowUp' || c === 'KeyW') jump();
     else if (c === 'KeyP' || c === 'Escape') togglePause();
@@ -659,14 +668,13 @@ window.addEventListener('keydown', e => {
     if (c === 'Space' || c === 'Enter') nextAfterLevel();
   } else if (state === 'win' && mode === 'league') {
     if (c === 'Space' || c === 'Enter' || c === 'KeyL') openCLMenu();
-    else if (c === 'KeyO') { SFX.whistle(); newGame(); }
+    else if (c === 'KeyO') startGame();
     else if (c === 'KeyC' || c === 'Escape') toMenu();
     else if (c === 'KeyR') openRanking();
   } else if (state === 'over' || state === 'win') {
-    if (c === 'Space' || c === 'Enter') { SFX.whistle(); newGame(); }
+    if (c === 'Space' || c === 'Enter') startGame();
     else if (c === 'KeyC' || c === 'Escape') toMenu();
     else if (c === 'KeyR') openRanking();
-    else if (c === 'KeyL' && clOpen) openCLMenu();
   }
 });
 window.addEventListener('keyup', e => {
@@ -736,8 +744,8 @@ const FIREBASE_CONFIG = {
 const FIREBASE_VERSION = '10.12.2';
 const RANK_LIMIT = 50; // zoveel scores worden live bijgehouden (zuinig met lezen)
 
-let store = null, dl = null, ranking = [], rankStatus = 'loading', rankFrom = 'menu', unsubRanking = null;
-let entryState = 'none', savedEntryId = null, savedEntry = null, dlMsg = null;
+let store = null, ranking = [], rankStatus = 'loading', rankFrom = 'menu', unsubRanking = null;
+let entryState = 'none', savedEntryId = null, savedEntry = null;
 // bladeren: de live lijst bevat alleen de top, daarom halen we bij het openen ook alle scores op
 const PER_PAGE = 10;
 let rankTab = 'league', rankPage = 0, fullRows = null, fullAt = 0, fullLoading = false;
@@ -838,7 +846,6 @@ function subscribeRanking() {
   });
 }
 (async () => {
-  if (inArtifact) window.claude.use('downloads').then(d => { dl = d; }).catch(() => {});
   try { store = await withTimeout(firebaseStore(), 6000); subscribeRanking(); }
   catch (e) { useArtifactOrLocal(); }
 })();
@@ -863,7 +870,7 @@ async function saveScore() {
       }
       savedEntryId = id; savedEntry = entry; entryState = 'saved';
       refreshFull(true);
-    } catch (e) { entryState = 'error'; }
+    } catch (e) { entryState = 'error'; autoSave = false; }
   } else {
     const list = loadLocalRanking();
     const id = 'L' + Date.now();
@@ -878,10 +885,8 @@ entryEl.addEventListener('submit', e => { e.preventDefault(); audio(); saveScore
 nameInput.addEventListener('input', () => { if (entryState === 'badname') entryState = 'open'; });
 
 function syncEntryForm() {
-  const show = (state === 'over' || state === 'win') && (entryState === 'open' || entryState === 'saving' || entryState === 'error' || entryState === 'badname');
+  const show = (state === 'over' || state === 'win') && (entryState === 'open' || (entryState === 'saving' && !autoSave) || entryState === 'error' || entryState === 'badname');
   if (entryEl.hidden === show) entryEl.hidden = !show;
-  const hoog = state === 'win' && mode === 'league';
-  if (entryEl.classList.contains('hoog') !== hoog) entryEl.classList.toggle('hoog', hoog);
   const busy = entryState === 'saving';
   if (saveBtn.disabled !== busy) { saveBtn.disabled = busy; nameInput.disabled = busy; saveBtn.textContent = busy ? 'Opslaan…' : 'Zet op de ranglijst'; }
 }
@@ -930,50 +935,17 @@ function openRanking() {
   rankTab = rankFrom === 'menu' ? 'league' : mode;
   const m = myRank(rankTab);
   rankPage = m ? Math.floor((m - 1) / PER_PAGE) : 0;
-  state = 'ranking'; dlMsg = null; SFX.select();
+  state = 'ranking'; SFX.select();
   refreshFull(false);
 }
 function closeRanking() { state = rankFrom; SFX.select(); }
-function replayFromRanking() {
-  if (rankFrom === 'menu') { mode = 'league'; player = PLAYERS[sel]; }
-  else if (rankFrom === 'clMenu') { mode = 'cl'; player = CL_PLAYERS[clSel]; }
-  SFX.whistle(); newGame();
-}
+function replayFromRanking() { startGame(); }
 // plek van de net opgeslagen score in de lijst van die spelmodus
 function myRank(tab) {
   if (!savedEntryId || !savedEntry) return 0;
   const t = tab || (isCLRow(savedEntry) ? 'cl' : 'league');
   return tabRows(t).findIndex(r => r.id === savedEntryId) + 1;
 }
-function saveFile(filename, data) {
-  if (dl) return dl.save({ filename, data });
-  // gewone browser: bestand downloaden via een tijdelijke link
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }));
-  a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  return Promise.resolve();
-}
-async function downloadRanking() {
-  if (store) { try { fullRows = await store.getAll(); fullAt = Date.now(); } catch (e) {} }
-  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const lines = ['Spelmodus;Plek;Naam;Punten;Speler;Gehaald;Datum'];
-  for (const [tab, label] of [['league', 'Competitie'], ['cl', 'Champions League']]) {
-    tabRows(tab).forEach((r, i) => {
-      const d = r.datum ? new Date(r.datum) : null;
-      const datum = d && !isNaN(d) ? d.toLocaleDateString('nl-NL') + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '';
-      lines.push([esc(label), i + 1, esc(r.name), r.score, esc(spelerName(r)), esc(gehaaldLabel(r)), esc(datum)].join(';'));
-    });
-  }
-  try {
-    await saveFile('tackle-terror-ranglijst.csv', '﻿' + lines.join('\r\n'));
-    dlMsg = 'Ranglijst gedownload';
-  } catch (e) {
-    dlMsg = e && e.code === 'declined' ? null : 'Downloaden lukt hier niet';
-  }
-}
-
 /* ---------- Update ---------- */
 function update(dt) {
   time += dt;
@@ -1671,13 +1643,9 @@ function drawMenu() {
   drawCards(PLAYERS, sel, i => { if (sel === i) startGame(); else { sel = i; SFX.select(); } }, 138);
   button(W / 2 - 130, 448, 260, 50, `Start met ${PLAYERS[sel].name.split(' ')[0]}`, startGame, true);
   button(24, 448, 150, 50, 'Ranglijst', openRanking, false);
-  if (clOpen) {
-    button(W - 24 - 210, 448, 210, 50, 'Champions League', openCLMenu, false);
-  } else {
-    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#c9d6e4'; ctx.font = `600 16px ${FB}`;
-    ctx.fillText('Word kampioen en speel', W - 28, 462);
-    ctx.fillText('de Champions League!', W - 28, 484);
-  }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#c9d6e4'; ctx.font = `600 16px ${FB}`;
+  ctx.fillText('Word kampioen en speel', W - 28, 462);
+  ctx.fillText('de Champions League!', W - 28, 484);
   ctx.fillStyle = '#c9d6e4'; ctx.font = `500 17px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText(coarse ? 'Tik op een speler om te kiezen' : 'Kies met de pijltjes of klik, start met spatie', W / 2, 522);
 }
@@ -1702,10 +1670,10 @@ function drawCLMenu() {
   }
   bigTitle('Champions League', 58, 46, '#dfe8ff');
   ctx.fillStyle = '#e6eef8'; ctx.font = `600 21px ${FB}`; ctx.textAlign = 'center';
-  ctx.fillText('Je bent kampioen! Kies een topspeler voor twee loeizware Europese duels.', W / 2, 112);
+  ctx.fillText('Je bent kampioen! Kies een topspeler. Je krijgt één kans in twee loeizware Europese duels.', W / 2, 112);
   drawCards(CL_PLAYERS, clSel, i => { if (clSel === i) startCL(); else { clSel = i; SFX.select(); } }, 138);
   button(W / 2 - 130, 448, 260, 50, `Start met ${CL_PLAYERS[clSel].name.split(' ')[0]}`, startCL, true);
-  button(24, 448, 150, 50, 'Terug', () => { state = 'menu'; SFX.select(); }, false);
+  button(24, 448, 150, 50, 'Terug', () => { state = 'win'; SFX.select(); }, false);
   button(W - 24 - 150, 448, 150, 50, 'Ranglijst', openRanking, false);
   ctx.fillStyle = '#c9d6e4'; ctx.font = `500 17px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText(coarse ? 'Tik op een speler om te kiezen' : 'Kies met de pijltjes of klik, start met spatie', W / 2, 522);
@@ -1877,7 +1845,7 @@ function drawEnd(won) {
     ctx.fillRect(-7, 20, 14, 22); ctx.fillStyle = cupDark; ctx.fillRect(-30, 42, 60, 14);
     ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-28, -44, 8, 40);
     ctx.restore();
-    bigTitle(cl ? 'Europees kampioen!' : 'Kampioen!', 200, cl ? 46 : 54, cl ? '#dfe8ff' : '#ffb627');
+    bigTitle(cl ? 'Champions League-winnaar!' : 'Kampioen!', 200, cl ? 44 : 54, cl ? '#dfe8ff' : '#ffb627');
     ctx.fillStyle = '#ffffff'; ctx.font = `600 23px ${FB}`; ctx.textAlign = 'center';
     ctx.fillText(cl ? `${player.name} won de Champions League met ${Math.floor(score)} punten.`
       : `${player.name} haalde alle drie de levels met ${Math.floor(score)} punten.`, W / 2, 246);
@@ -1893,19 +1861,33 @@ function drawEnd(won) {
     ctx.fillText(cl ? `Je haalde ${Math.floor(score)} punten en kwam tot de ${lvlLabel().toLowerCase()} van de Champions League.`
       : `Je haalde ${Math.floor(score)} punten en kwam tot level ${lvlIdx + 1}.`, W / 2, 246);
   }
+  if (cl) {
+    ctx.fillStyle = '#9fb3c6'; ctx.font = `500 17px ${FB}`;
+    ctx.fillText('Nog een keer de Champions League spelen? Word dan eerst weer kampioen.', W / 2, 270);
+  }
+  // eerst je score op de ranglijst zetten (het invulvak staat op 62% van de hoogte), dan de knoppen
+  drawEntryText(294, 326);
   const bw = 200, gx = W / 2 - (bw * 3 + 16 * 2) / 2;
-  button(gx, 310, bw, 50, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, true);
-  button(gx + bw + 16, 310, bw, 50, 'Andere speler', toMenu, false);
-  button(gx + (bw + 16) * 2, 310, bw, 50, 'Ranglijst', openRanking, false);
-  drawEntryText(395, 420);
+  button(gx, 380, bw, 50, cl ? 'Nieuwe competitie' : 'Opnieuw spelen', startGame, true);
+  button(gx + bw + 16, 380, bw, 50, 'Andere speler', toMenu, false);
+  button(gx + (bw + 16) * 2, 380, bw, 50, 'Ranglijst', openRanking, false);
   ctx.fillStyle = '#9fb3c6'; ctx.font = `500 17px ${FB}`; ctx.textBaseline = 'alphabetic';
-  if (!coarse) ctx.fillText('Spatie = opnieuw, C = andere speler, R = ranglijst', W / 2, 520);
+  if (!coarse) ctx.fillText(`Spatie = ${cl ? 'nieuwe competitie' : 'opnieuw'}, C = andere speler, R = ranglijst`, W / 2, 520);
 }
 
 // tekst bij het invulvak voor de ranglijst (vraag op hoogte y, melding na opslaan op hoogte ySaved)
 function drawEntryText(y, ySaved) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  if (entryState === 'open' || entryState === 'saving') {
+  if (autoSave && entryState === 'saving') {
+    ctx.fillStyle = '#ffffff'; ctx.font = `600 22px ${FB}`;
+    ctx.fillText(`Je score wordt opgeslagen onder de naam ${clName}…`, W / 2, ySaved);
+  } else if (autoSave && entryState === 'saved') {
+    const r = myRank();
+    ctx.fillStyle = '#5bd36b'; ctx.font = `600 24px ${FB}`;
+    ctx.fillText(`Opgeslagen onder de naam ${savedEntry.name}${r ? `, plek ${r} van de Champions League-ranglijst` : ''}!`, W / 2, ySaved - 10);
+    ctx.fillStyle = '#c9d6e4'; ctx.font = `500 18px ${FB}`;
+    ctx.fillText('Je had je competitiescore al op naam gezet, dus deze score staat er ook onder.', W / 2, ySaved + 18);
+  } else if (entryState === 'open' || entryState === 'saving') {
     ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
     ctx.fillText('Zet je score op de ranglijst:', W / 2, y);
   } else if (entryState === 'badname') {
@@ -1967,16 +1949,16 @@ function drawChampion() {
   ctx.fillStyle = '#c9d6ff'; ctx.font = `500 17px ${FB}`;
   ctx.fillText('Speel nu tegen de beste ploegen van Europa', W / 2, by + 45);
 
-  // score op de ranglijst (het invulvak zelf is HTML en staat op 61% van de hoogte)
-  drawEntryText(296, 322);
+  // score op de ranglijst (het invulvak zelf is HTML en staat op 62% van de hoogte)
+  drawEntryText(294, 326);
 
   // grote knop: Champions League
-  button(W / 2 - 190, 364, 380, 60, 'Speel Champions League', openCLMenu, true, 28);
+  button(W / 2 - 190, 368, 380, 60, 'Speel Champions League', openCLMenu, true, 28);
   // kleinere knoppen eronder
   const bw = 170, gx = W / 2 - (bw * 3 + 14 * 2) / 2;
-  button(gx, 440, bw, 40, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, false, 19);
-  button(gx + bw + 14, 440, bw, 40, 'Andere speler', toMenu, false, 19);
-  button(gx + (bw + 14) * 2, 440, bw, 40, 'Ranglijst', openRanking, false, 19);
+  button(gx, 446, bw, 40, 'Opnieuw spelen', startGame, false, 19);
+  button(gx + bw + 14, 446, bw, 40, 'Andere speler', toMenu, false, 19);
+  button(gx + (bw + 14) * 2, 446, bw, 40, 'Ranglijst', openRanking, false, 19);
 
   if (Math.random() < 0.15) burst(Math.random() * W, -10, 2, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 60, grav: 250, life: 3, size: 5, rect: true });
   drawParts();
@@ -2045,13 +2027,12 @@ function drawRanking() {
   ctx.textAlign = 'center'; ctx.font = `500 16px ${FB}`; ctx.fillStyle = '#9fb3c6';
   let foot = rankStatus === 'local' ? 'Deze ranglijst wordt alleen in deze browser bewaard.' : '';
   if (pages > 1) foot = `Pagina ${rankPage + 1} van ${pages}` + (coarse ? '' : ' (bladeren met ← en →)') + (fullLoading ? ' · laden…' : '') + (foot ? ' · ' + foot : '');
-  if (dlMsg) { ctx.fillStyle = '#5bd36b'; foot = dlMsg; }
   if (foot) ctx.fillText(foot, W / 2, py + ph - 14);
-  const canDl = list.length > 0;
-  const n = canDl ? 3 : 2, bw = 220, gx = W / 2 - (bw * n + 16 * (n - 1)) / 2;
+  const showCL = canPlayCL();
+  const n = showCL ? 3 : 2, bw = showCL ? 250 : 220, gx = W / 2 - (bw * n + 16 * (n - 1)) / 2;
   button(gx, 462, bw, 50, 'Terug', closeRanking, false);
-  button(gx + bw + 16, 462, bw, 50, 'Opnieuw spelen', replayFromRanking, true);
-  if (canDl) button(gx + (bw + 16) * 2, 462, bw, 50, 'Download als bestand', downloadRanking, false);
+  button(gx + bw + 16, 462, bw, 50, 'Opnieuw spelen', replayFromRanking, !showCL);
+  if (showCL) button(gx + (bw + 16) * 2, 462, bw, 50, 'Speel Champions League', openCLMenu, true);
 }
 
 function drawPaused() {

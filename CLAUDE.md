@@ -12,7 +12,7 @@ Een 2D voetbal-renspel (side-scroller), gemaakt door een vader en zoon (14). De 
 - Externe bronnen zijn alleen Google Fonts (Bungee en Barlow Condensed, met fallback-lettertypen) en de Firebase-SDK voor de ranglijst. Het spel moet ook zonder die twee speelbaar blijven.
 - Er is een vaste logische resolutie van 960 × 540, die geschaald wordt naar de schermgrootte.
 - De spelstatus `state` is een van: `menu`, `clMenu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. Er is één `update(dt)` en één `render()` per frame.
-- `mode` is `league` (gewone competitie, `LEVELS`/`PLAYERS`) of `cl` (Champions League, `CL_LEVELS`/`CL_PLAYERS`). Gebruik `levels()`, `lvl()` en `lvlLabel()` in plaats van `LEVELS[lvlIdx]`. De Champions League komt vrij na het kampioenschap (sleutel `tackle-terror-cl`).
+- `mode` is `league` (gewone competitie, `LEVELS`/`PLAYERS`) of `cl` (Champions League, `CL_LEVELS`/`CL_PLAYERS`). Gebruik `levels()`, `lvl()` en `lvlLabel()` in plaats van `LEVELS[lvlIdx]`. Na het kampioenschap mag je de Champions League één keer spelen (`clOpen`, alleen in het geheugen, `canPlayCL()`). Er is geen CL-knop in het startmenu; je komt er via het kampioensscherm of de ranglijst die je daar opent. De oude sleutel `tackle-terror-cl` wordt niet meer gebruikt. Stond de competitiescore al op naam (`clName`), dan wordt de CL-score automatisch onder die naam opgeslagen (`autoSave`).
 - Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `CL_PLAYERS`, `CL_LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`, `ACHTERGRONDGELUID`, `HYMNE_VOLUME`, `VERBODEN_DEEL`, `VERBODEN_WOORD`). Nieuwe instelbare waarden horen daar.
 - Knoppen op het canvas worden elke frame opnieuw geregistreerd via `button()` / `buttons.push()`.
 
