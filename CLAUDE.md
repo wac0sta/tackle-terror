@@ -13,7 +13,7 @@ Een 2D voetbal-renspel (side-scroller), gemaakt door een vader en zoon (14). De 
 - Er is een vaste logische resolutie van 960 × 540, die geschaald wordt naar de schermgrootte.
 - De spelstatus `state` is een van: `menu`, `clMenu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. Er is één `update(dt)` en één `render()` per frame.
 - `mode` is `league` (gewone competitie, `LEVELS`/`PLAYERS`) of `cl` (Champions League, `CL_LEVELS`/`CL_PLAYERS`). Gebruik `levels()`, `lvl()` en `lvlLabel()` in plaats van `LEVELS[lvlIdx]`. De Champions League komt vrij na het kampioenschap (sleutel `tackle-terror-cl`).
-- Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `CL_PLAYERS`, `CL_LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`, `ACHTERGRONDGELUID`, `VERBODEN_DEEL`, `VERBODEN_WOORD`). Nieuwe instelbare waarden horen daar.
+- Bovenaan het script staat het blok **INSTELLINGEN** (`PLAYERS`, `LEVELS`, `CL_PLAYERS`, `CL_LEVELS`, `OPP`, `REF`, `KEEPER`, `ADS`, `ACHTERGRONDGELUID`, `HYMNE_VOLUME`, `VERBODEN_DEEL`, `VERBODEN_WOORD`). Nieuwe instelbare waarden horen daar.
 - Knoppen op het canvas worden elke frame opnieuw geregistreerd via `button()` / `buttons.push()`.
 
 ## Ranglijst en opslag
@@ -49,7 +49,7 @@ Speel het spel daarna in een browser als het kan, of vraag de gebruiker om het t
 - "Langste combo" op het levelscherm geldt voor het hele potje, niet per level.
 - Er is geen opbouw in tempo binnen een level.
 - Er is geen knop voor volledig scherm op mobiel.
-- Met spatie op het eindscherm sla je het invullen van je naam over.
+- Met spatie op het eindscherm sla je het invullen van je naam over (op het kampioensscherm gaat spatie naar de Champions League).
 - Ranglijst: toon per naam alleen de beste score en begrens de lokale lijst.
 - Het namenfilter werkt alleen in het spel; de Firestore-regels controleren geen woorden.
 - De moeilijkheid van de Champions League-levels is nog niet uitgebreid getest.

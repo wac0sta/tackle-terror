@@ -75,6 +75,7 @@
     width: min(90%, 470px);
   }
   .entry[hidden] { display: none; }
+  .entry.hoog { top: 61%; }
   .entry input {
     flex: 1; min-width: 0;
     font: 600 1.15rem "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
@@ -209,6 +210,9 @@ const KEEPER = { kit: '#27c46a', shorts: '#14301f', socks: '#27c46a', skin: '#d9
 const ADS = ['Frituur De Gouden Bal', 'Bakkerij Krentenbol', 'Fietsen Van Dijk', 'Snackbar De Corner', 'Sportschool Spierwit', 'Garage De Wissel'];
 // Doorlopend stadiongeluid (publiek en klapritme). Zet op true om het weer aan te zetten.
 const ACHTERGRONDGELUID = false;
+
+// Volume van de hymne op het kampioensscherm (0 = uit, 1 = hard)
+const HYMNE_VOLUME = 0.5;
 // Namen met deze woorden mogen niet op de ranglijst (ook niet als k4nk3r of k.a.n.k.e.r).
 // VERBODEN_DEEL: verboden als het érgens in de naam zit. VERBODEN_WOORD: alleen als los woord
 // (anders zou bijvoorbeeld "Janus" niet mogen vanwege "anus").
@@ -356,6 +360,72 @@ function whistleBlast(dur, delay = 0, vol = 0.09) {
   }
   trill.start(t); trill.stop(t + dur + 0.05);
   noise(dur, vol * 0.35, 3000, 2, delay);
+}
+
+// Hymne op het kampioensscherm: een eigen, plechtig koorstuk in de stijl van een Europese voetbalhymne.
+// Elke maat heeft 3 tellen: een akkoord (koor), een basnoot met pauk en de melodie.
+const HYMNE_TEL = 0.62; // seconden per tel
+const HYMNE_AKKOORD = {
+  D: [50, 62, 66, 69], G: [43, 62, 67, 71], A: [45, 61, 64, 69], Bm: [47, 62, 66, 71], Em: [40, 59, 64, 67]
+};
+const HYMNE_MATEN = [ // [akkoord, melodie als [noot, tellen]]
+  ['D', [[69, 2], [74, 1]]], ['G', [[71, 1.5], [74, 0.5], [79, 1]]], ['D', [[78, 2], [74, 1]]], ['A', [[76, 3]]],
+  ['Bm', [[74, 1], [78, 1], [83, 1]]], ['G', [[83, 1.5], [81, 0.5], [79, 1]]], ['A', [[78, 1], [76, 1], [73, 1]]], ['D', [[74, 3]]],
+  ['G', [[79, 2], [83, 1]]], ['D', [[81, 2], [78, 1]]], ['Em', [[79, 1], [78, 1], [76, 1]]], ['A', [[81, 3]]],
+  ['D', [[86, 2], [81, 1]]], ['G', [[83, 1], [79, 1], [76, 1]]], ['A', [[78, 1.5], [76, 0.5], [73, 1]]], ['D', [[74, 3]]]
+];
+const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+let hymn = null;
+function startHymn() {
+  if (hymn || !actx || HYMNE_VOLUME <= 0) return;
+  const out = actx.createGain(); out.gain.value = muted ? 0 : HYMNE_VOLUME; out.connect(actx.destination);
+  const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; lp.connect(out);
+  hymn = { out, lp, bar: 0, next: actx.currentTime + 0.4 };
+}
+function stopHymn() {
+  if (!hymn) return;
+  const h = hymn; hymn = null;
+  const t = actx.currentTime;
+  h.out.gain.cancelScheduledValues(t); h.out.gain.setValueAtTime(h.out.gain.value, t);
+  h.out.gain.linearRampToValueAtTime(0, t + 0.4);
+  setTimeout(() => { try { h.out.disconnect(); } catch (e) {} }, 600);
+}
+// één toon van de hymne, met een zachte aanzet en uitklinken
+function hymnNote(f, t, dur, type, vol, attack, detune = 0) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = f; o.detune.value = detune;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + attack);
+  g.gain.setValueAtTime(vol, t + Math.max(attack, dur - 0.15));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.25);
+  o.connect(g); g.connect(hymn.lp); o.start(t); o.stop(t + dur + 0.3);
+}
+function updateHymn() {
+  if (!hymn) return;
+  // plan steeds een stukje vooruit, zodat de muziek niet hapert
+  while (hymn.next < actx.currentTime + 0.5) {
+    const t = hymn.next, [ak, mel] = HYMNE_MATEN[hymn.bar % HYMNE_MATEN.length];
+    const len = HYMNE_TEL * 3;
+    const notes = HYMNE_AKKOORD[ak];
+    // koor: twee iets verstemde zaagtanden per noot klinken als veel stemmen
+    for (const n of notes.slice(1)) {
+      hymnNote(midi(n), t, len, 'sawtooth', 0.018, 0.35, -7);
+      hymnNote(midi(n), t, len, 'sawtooth', 0.018, 0.35, 7);
+    }
+    // bas en pauk
+    hymnNote(midi(notes[0]), t, len, 'triangle', 0.12, 0.05);
+    hymnNote(midi(notes[0] - 12), t, 0.5, 'sine', 0.22, 0.01);
+    if (hymn.bar % 4 === 3) hymnNote(midi(notes[0] - 12), t + HYMNE_TEL * 2, 0.4, 'sine', 0.18, 0.01);
+    // melodie (koperblazers)
+    let mt = t;
+    for (const [n, tel] of mel) {
+      hymnNote(midi(n), mt, tel * HYMNE_TEL * 0.95, 'square', 0.035, 0.06);
+      hymnNote(midi(n - 12), mt, tel * HYMNE_TEL * 0.95, 'triangle', 0.05, 0.06);
+      mt += tel * HYMNE_TEL;
+    }
+    hymn.bar++; hymn.next += len;
+    if (hymn.bar % HYMNE_MATEN.length === 0) hymn.next += HYMNE_TEL; // korte adempauze voor het herhalen
+  }
 }
 
 const SFX = {
@@ -521,6 +591,7 @@ function togglePause() {
 function toggleMute() {
   muted = !muted;
   if (ambMaster) ambMaster.gain.value = muted ? 0 : 1;
+  if (hymn) hymn.out.gain.value = muted ? 0 : HYMNE_VOLUME;
   document.getElementById('btnSound').textContent = muted ? 'Geluid aan' : 'Geluid uit';
 }
 function startGame() { mode = 'league'; player = PLAYERS[sel]; SFX.whistle(); newGame(); }
@@ -586,6 +657,11 @@ window.addEventListener('keydown', e => {
     else if (c === 'KeyP' || c === 'Escape') togglePause();
   } else if (state === 'levelEnd') {
     if (c === 'Space' || c === 'Enter') nextAfterLevel();
+  } else if (state === 'win' && mode === 'league') {
+    if (c === 'Space' || c === 'Enter' || c === 'KeyL') openCLMenu();
+    else if (c === 'KeyO') { SFX.whistle(); newGame(); }
+    else if (c === 'KeyC' || c === 'Escape') toMenu();
+    else if (c === 'KeyR') openRanking();
   } else if (state === 'over' || state === 'win') {
     if (c === 'Space' || c === 'Enter') { SFX.whistle(); newGame(); }
     else if (c === 'KeyC' || c === 'Escape') toMenu();
@@ -804,6 +880,8 @@ nameInput.addEventListener('input', () => { if (entryState === 'badname') entryS
 function syncEntryForm() {
   const show = (state === 'over' || state === 'win') && (entryState === 'open' || entryState === 'saving' || entryState === 'error' || entryState === 'badname');
   if (entryEl.hidden === show) entryEl.hidden = !show;
+  const hoog = state === 'win' && mode === 'league';
+  if (entryEl.classList.contains('hoog') !== hoog) entryEl.classList.toggle('hoog', hoog);
   const busy = entryState === 'saving';
   if (saveBtn.disabled !== busy) { saveBtn.disabled = busy; nameInput.disabled = busy; saveBtn.textContent = busy ? 'Opslaan…' : 'Zet op de ranglijst'; }
 }
@@ -900,6 +978,8 @@ async function downloadRanking() {
 function update(dt) {
   time += dt;
   updateAmbience(dt);
+  if (state === 'win') startHymn(); else stopHymn();
+  updateHymn();
   if (state !== 'paused') {
     for (const t of texts) { t.t += dt; t.y -= 40 * dt; }
     texts = texts.filter(t => t.t < 1.2);
@@ -1536,14 +1616,14 @@ function bigTitle(txt, y, size, color = '#ffffff') {
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillText(txt, W / 2 + 4, y + 5);
   ctx.fillStyle = color; ctx.fillText(txt, W / 2, y);
 }
-function button(x, y, w, h, label, action, primary) {
+function button(x, y, w, h, label, action, primary, size = 24) {
   buttons.push({ x, y, w, h, action });
   const hover = mouse.x >= x && mouse.x <= x + w && mouse.y >= y && mouse.y <= y + h;
   ctx.fillStyle = primary ? (hover ? '#ffc94d' : '#ffb627') : (hover ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.13)');
   rr(x, y, w, h, 10); ctx.fill();
   if (!primary) { ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.stroke(); }
   ctx.fillStyle = primary ? '#241703' : '#ffffff';
-  ctx.font = `700 24px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `700 ${size}px ${FB}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(label, x + w / 2, y + h / 2 + 1);
 }
 
@@ -1780,6 +1860,7 @@ function drawLevelEnd() {
 
 function drawEnd(won) {
   const cl = mode === 'cl';
+  if (won && !cl) { drawChampion(); return; }
   if (won) { drawPenalty(); } else { drawScene(); }
   ctx.fillStyle = 'rgba(6,12,20,0.7)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1800,8 +1881,6 @@ function drawEnd(won) {
     ctx.fillStyle = '#ffffff'; ctx.font = `600 23px ${FB}`; ctx.textAlign = 'center';
     ctx.fillText(cl ? `${player.name} won de Champions League met ${Math.floor(score)} punten.`
       : `${player.name} haalde alle drie de levels met ${Math.floor(score)} punten.`, W / 2, 246);
-    ctx.font = `600 20px ${FB}`; ctx.fillStyle = '#ffb627';
-    if (!cl) ctx.fillText('De Champions League is vrijgespeeld!', W / 2, 280);
     if (Math.random() < 0.15) burst(Math.random() * W, -10, 2, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 60, grav: 250, life: 3, size: 5, rect: true });
     drawParts();
   } else {
@@ -1814,30 +1893,95 @@ function drawEnd(won) {
     ctx.fillText(cl ? `Je haalde ${Math.floor(score)} punten en kwam tot de ${lvlLabel().toLowerCase()} van de Champions League.`
       : `Je haalde ${Math.floor(score)} punten en kwam tot level ${lvlIdx + 1}.`, W / 2, 246);
   }
-  const showCL = won && !cl;
-  const n = showCL ? 4 : 3, bw = showCL ? 196 : 200, gx = W / 2 - (bw * n + 16 * (n - 1)) / 2;
-  button(gx, 310, bw, 50, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, !showCL);
+  const bw = 200, gx = W / 2 - (bw * 3 + 16 * 2) / 2;
+  button(gx, 310, bw, 50, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, true);
   button(gx + bw + 16, 310, bw, 50, 'Andere speler', toMenu, false);
   button(gx + (bw + 16) * 2, 310, bw, 50, 'Ranglijst', openRanking, false);
-  if (showCL) button(gx + (bw + 16) * 3, 310, bw, 50, 'Champions League', openCLMenu, true);
+  drawEntryText(395, 420);
+  ctx.fillStyle = '#9fb3c6'; ctx.font = `500 17px ${FB}`; ctx.textBaseline = 'alphabetic';
+  if (!coarse) ctx.fillText('Spatie = opnieuw, C = andere speler, R = ranglijst', W / 2, 520);
+}
+
+// tekst bij het invulvak voor de ranglijst (vraag op hoogte y, melding na opslaan op hoogte ySaved)
+function drawEntryText(y, ySaved) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (entryState === 'open' || entryState === 'saving') {
     ctx.fillStyle = '#ffffff'; ctx.font = `600 20px ${FB}`;
-    ctx.fillText('Zet je score op de ranglijst:', W / 2, 395);
+    ctx.fillText('Zet je score op de ranglijst:', W / 2, y);
   } else if (entryState === 'badname') {
     ctx.fillStyle = '#ff8a7a'; ctx.font = `600 20px ${FB}`;
-    ctx.fillText('Die naam mag niet op de ranglijst. Kies een andere naam.', W / 2, 395);
+    ctx.fillText('Die naam mag niet op de ranglijst. Kies een andere naam.', W / 2, y);
   } else if (entryState === 'error') {
     ctx.fillStyle = '#ff8a7a'; ctx.font = `600 20px ${FB}`;
-    ctx.fillText('Opslaan lukte niet. Probeer het nog een keer.', W / 2, 395);
+    ctx.fillText('Opslaan lukte niet. Probeer het nog een keer.', W / 2, y);
   } else if (entryState === 'saved') {
     const r = myRank();
     ctx.fillStyle = '#5bd36b'; ctx.font = `600 24px ${FB}`;
-    const lijst = cl ? 'de Champions League-ranglijst' : 'de ranglijst';
-    ctx.fillText(r ? `Opgeslagen! ${savedEntry.name} staat op plek ${r} van ${lijst}.` : `Opgeslagen op ${lijst}, ${savedEntry.name}!`, W / 2, 420);
+    const lijst = mode === 'cl' ? 'de Champions League-ranglijst' : 'de ranglijst';
+    ctx.fillText(r ? `Opgeslagen! ${savedEntry.name} staat op plek ${r} van ${lijst}.` : `Opgeslagen op ${lijst}, ${savedEntry.name}!`, W / 2, ySaved);
   }
-  ctx.fillStyle = '#9fb3c6'; ctx.font = `500 17px ${FB}`; ctx.textBaseline = 'alphabetic';
-  if (!coarse) ctx.fillText(`Spatie = opnieuw, C = andere speler, R = ranglijst${showCL ? ', L = Champions League' : ''}`, W / 2, 520);
+}
+
+// Eindscherm na level 3, van boven naar beneden: kampioen, Champions League vrijgespeeld,
+// score opslaan, grote knop "Speel Champions League" en daaronder kleinere knoppen
+function drawChampion() {
+  drawPenalty();
+  ctx.fillStyle = 'rgba(6,12,20,0.74)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // gouden beker
+  ctx.save(); ctx.translate(W / 2, 58 + Math.sin(time * 2) * 3); ctx.scale(0.6, 0.6);
+  ctx.fillStyle = '#ffcc33';
+  ctx.beginPath(); ctx.moveTo(-42, -50); ctx.lineTo(42, -50); ctx.quadraticCurveTo(40, 10, 0, 22); ctx.quadraticCurveTo(-40, 10, -42, -50); ctx.fill();
+  ctx.lineWidth = 8; ctx.strokeStyle = '#ffcc33';
+  ctx.beginPath(); ctx.arc(-45, -24, 16, Math.PI * 0.5, Math.PI * 1.5); ctx.stroke();
+  ctx.beginPath(); ctx.arc(45, -24, 16, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+  ctx.fillRect(-7, 20, 14, 22); ctx.fillStyle = '#c99a1e'; ctx.fillRect(-30, 42, 60, 14);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-28, -44, 8, 40);
+  ctx.restore();
+  bigTitle('Kampioen!', 128, 50, '#ffb627');
+  ctx.fillStyle = '#ffffff'; ctx.font = `600 22px ${FB}`; ctx.textAlign = 'center';
+  ctx.fillText(`${player.name} haalde alle drie de levels met ${Math.floor(score)} punten.`, W / 2, 170);
+
+  // blauwe band met sterren: Champions League vrijgespeeld
+  const by = 194, bh = 58, bx = 150, bwid = W - 300;
+  const g = ctx.createLinearGradient(bx, 0, bx + bwid, 0);
+  g.addColorStop(0, '#0b1f5c'); g.addColorStop(0.5, '#1d3f9e'); g.addColorStop(1, '#0b1f5c');
+  ctx.fillStyle = g; rr(bx, by, bwid, bh, 12); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = `rgba(223,232,255,${0.55 + 0.35 * Math.sin(time * 4)})`; ctx.stroke();
+  const star = (cx, cy, r) => {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * 0.45 : r;
+      ctx.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad);
+    }
+    ctx.closePath(); ctx.fill();
+  };
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 3; i++) {
+    const s = 7 + 2 * Math.sin(time * 3 + i);
+    star(bx + 32 + i * 22, by + bh / 2, s);
+    star(bx + bwid - 32 - i * 22, by + bh / 2, s);
+  }
+  ctx.fillStyle = '#ffffff'; ctx.font = `24px ${FD}`;
+  ctx.fillText('Champions League vrijgespeeld!', W / 2, by + 22);
+  ctx.fillStyle = '#c9d6ff'; ctx.font = `500 17px ${FB}`;
+  ctx.fillText('Speel nu tegen de beste ploegen van Europa', W / 2, by + 45);
+
+  // score op de ranglijst (het invulvak zelf is HTML en staat op 61% van de hoogte)
+  drawEntryText(296, 322);
+
+  // grote knop: Champions League
+  button(W / 2 - 190, 364, 380, 60, 'Speel Champions League', openCLMenu, true, 28);
+  // kleinere knoppen eronder
+  const bw = 170, gx = W / 2 - (bw * 3 + 14 * 2) / 2;
+  button(gx, 440, bw, 40, 'Opnieuw spelen', () => { SFX.whistle(); newGame(); }, false, 19);
+  button(gx + bw + 14, 440, bw, 40, 'Andere speler', toMenu, false, 19);
+  button(gx + (bw + 14) * 2, 440, bw, 40, 'Ranglijst', openRanking, false, 19);
+
+  if (Math.random() < 0.15) burst(Math.random() * W, -10, 2, ['#ffb627', '#ff6a3d', '#2f7de1', '#ffffff', '#27c46a'], { speed: 60, grav: 250, life: 3, size: 5, rect: true });
+  drawParts();
+  ctx.textAlign = 'center'; ctx.fillStyle = '#9fb3c6'; ctx.font = `500 17px ${FB}`; ctx.textBaseline = 'alphabetic';
+  if (!coarse) ctx.fillText('Spatie = Champions League, O = opnieuw, C = andere speler, R = ranglijst', W / 2, 522);
 }
 
 function drawRanking() {

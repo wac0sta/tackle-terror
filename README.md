@@ -21,7 +21,8 @@ Open `index.html` in een browser. Er is geen installatie of server nodig.
 | Ranglijst openen | R (menu en eindscherm) | Knop "Ranglijst" |
 | Ranglijst bladeren | ← en → | Pijlen naast de lijst |
 | Wisselen tussen competitie en Champions League in de ranglijst | Tab | Knoppen bovenaan |
-| Champions League openen (na het kampioenschap) | L | Knop "Champions League" |
+| Champions League openen (na het kampioenschap) | L (op het kampioensscherm ook Spatie) | Knop "Speel Champions League" |
+| Opnieuw spelen op het kampioensscherm | O | Knop "Opnieuw spelen" |
 
 ## Spelregels
 
@@ -73,7 +74,7 @@ De eerste botsing in een level geeft een gele kaart, de tweede een rode kaart en
 
 Aan het eind van elk level volgt een penalty. Het richtkruis beweegt van links naar rechts; met ↑ en ↓ kies je de hoogte. Hoog in de hoek is het lastigst voor de keeper.
 
-**Champions League.** Ben je kampioen geworden (alle drie de levels gehaald), dan komt de Champions League vrij. Je ziet dan een knop op het eindscherm en in het menu. Daar speel je met een van twee topspelers twee hele moeilijke levels:
+**Champions League.** Ben je kampioen geworden (alle drie de levels gehaald), dan komt de Champions League vrij. Het kampioensscherm laat dat meteen zien: eerst zet je je score op de ranglijst, en dan start je met de grote knop "Speel Champions League". Ondertussen speelt er een plechtige hymne, die stopt zodra je het scherm verlaat. De Champions League staat ook in het menu. Daar speel je met een van twee topspelers twee hele moeilijke levels:
 
 | Speler | Kracht | Effect |
 |---|---|---|
@@ -139,6 +140,11 @@ Andere handige plekken in de code:
 Het spel werkt met een vaste logische resolutie van 960 × 540 pixels die wordt geschaald naar de schermgrootte. De spelstatus (`state`) is een van: `menu`, `clMenu`, `intro`, `play`, `red`, `penalty`, `levelEnd`, `over`, `win`, `ranking` of `paused`. De variabele `mode` is `league` (competitie) of `cl` (Champions League).
 
 ## Wijzigingslog
+
+### Versie 11: kampioensscherm
+- **Duidelijker kampioensscherm.** Na level 3 zie je van boven naar beneden: dat je kampioen bent, een blauwe band "Champions League vrijgespeeld!", het vak om je score op de ranglijst te zetten en een grote knop **Speel Champions League**. Daaronder staan kleinere knoppen voor opnieuw spelen, een andere speler en de ranglijst.
+- Met **Spatie** ga je op dat scherm naar de Champions League, met **O** speel je opnieuw.
+- **Hymne.** Op het winscherm speelt een eigen hymne in Champions League-stijl (live gemaakt met de Web Audio API). Hij stopt als je het scherm verlaat. Het volume stel je in met `HYMNE_VOLUME` in het blok INSTELLINGEN.
 
 ### Versie 10: Champions League
 - **Eerlijkere spelers.** Rik Raket kreeg 1,5× punten per bal en won daardoor bijna altijd. Nu krijgt iedereen evenveel punten. Rik rent 10% sneller (was 15%) en zijn turboschoenen werken twee keer zo lang.
